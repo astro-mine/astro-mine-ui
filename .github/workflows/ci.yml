@@ -1,0 +1,80 @@
+name: CI
+
+# The floor that must never be red. It runs on pull requests, not only on pushes to main — a gate
+# that first speaks after a merge is a gate that speaks too late.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Read-only by default (org security baseline).
+permissions:
+  contents: read
+
+# A newer push to the same branch supersedes the run in flight.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # The pnpm version comes from package.json "packageManager" (pnpm@11.10.0). Specifying it here
+      # too is an error, not a belt-and-braces.
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      # No registry credential: every @astro-mine dependency in this workspace is `workspace:*` and
+      # resolves locally. The .npmrc scope mapping exists for publishing and for consumers, not for
+      # this install. If a step here ever needs a token, that is a design change worth noticing.
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # The one rule this workspace exists to hold (ARCHITECTURE.md). First, because it is fast and
+      # because a layering break makes every later failure harder to read.
+      - name: Layering check
+        run: pnpm check:layering
+
+      # ...and the proof that the check above can actually fail. A gate nothing has been observed to
+      # reject is a gate nobody should trust.
+      - name: Layering check — its own failure modes
+        run: pnpm check:layering:test
+
+      - name: Format check (prettier)
+        run: pnpm format:check
+
+      - name: Type-check (tsc, every package and the app)
+        run: pnpm typecheck
+
+      - name: Lint (eslint, 0 warnings)
+        run: pnpm lint
+
+      - name: Build (packages, then the static export)
+        run: pnpm build
+
+      # `output: 'export'` is the whole deployment story, so assert the export actually happened
+      # rather than trusting a zero exit code. A Next config change that quietly drops the export
+      # would otherwise pass CI and only surface at deploy time.
+      - name: The build produced a static export
+        run: |
+          test -f apps/console/out/index.html \
+            || { echo "::error::next build produced no static export at apps/console/out/index.html"; exit 1; }
+          echo "Static export present: $(find apps/console/out -type f | wc -l) files."
+
+      # The first paint must arrive styled. AppRouterCacheProvider flushes Emotion's styles into the
+      # prerendered HTML; without it the export ships unstyled markup and flashes on hydrate. That is
+      # invisible to a type-check and to a passing build, so it is asserted on the emitted bytes.
+      - name: The static export carries its styles (no flash on first paint)
+        run: |
+          grep -q 'data-emotion=' apps/console/out/index.html \
+            || { echo "::error::apps/console/out/index.html carries no Emotion styles — the MUI cache provider is not wired, and the export will flash unstyled on first paint"; exit 1; }
+          echo "Emotion styles are inlined in the prerendered HTML."
