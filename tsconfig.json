@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  // The solution file. It compiles nothing itself; it names the composite projects so `tsc -b` at
+  // the root builds the packages in dependency order and so an editor can resolve one package's
+  // types from another's source rather than from a stale `dist/`.
+  //
+  // apps/console is deliberately NOT referenced here: a referenced project must be `composite`, and
+  // a composite project may not set `noEmit` — which Next.js requires, because Next, not tsc, emits
+  // the application. The app carries its own `references` to these packages and typechecks with
+  // `tsc --noEmit`.
+  "files": [],
+  "references": [
+    { "path": "packages/api-client" },
+    { "path": "packages/ui" },
+    { "path": "packages/view" },
+    { "path": "packages/inspectors" }
+  ]
+}

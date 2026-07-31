@@ -1,0 +1,22 @@
+# Node / pnpm
+node_modules/
+.pnpm-store/
+
+# Build outputs
+packages/*/dist/
+apps/*/.next/
+apps/*/out/
+*.tsbuildinfo
+
+# Test artifacts
+coverage/
+playwright-report/
+test-results/
+
+# A developer's local runtime configuration. Untracked by construction: the app ships with no API
+# endpoint configured so every page degrades visibly out of the box rather than pretending.
+apps/console/public/config.json
+
+# Editor / OS
+.DS_Store
+*.log
