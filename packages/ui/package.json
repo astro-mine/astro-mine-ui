@@ -1,0 +1,35 @@
+{
+  "name": "@astro-mine/ui",
+  "version": "0.0.0",
+  "description": "The Astro-Mine design system — the Material UI theme (light and dark), the honesty kit, and every chart the application renders. No raw chart primitive leaves this package.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/astro-mine/astro-mine-ui.git",
+    "directory": "packages/ui"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc -b"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  }
+}

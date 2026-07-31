@@ -1,0 +1,23 @@
+# The pnpm workspace for astro-mine-ui — the front-end distribution (conventions.md §7.1).
+#
+# Two slots, and the difference between them is the whole layering rule (ARCHITECTURE.md):
+#
+#   apps/*      the application. Private, deployed rather than consumed, and the only place that
+#               may import every package. Nothing may import it.
+#   packages/*  the @astro-mine libraries that ship to GitHub Packages. A package knows nothing of
+#               the app, and — with one stated exception — nothing of its siblings.
+#
+# `scripts/check-layering.mjs` enforces that direction mechanically rather than by review, and runs
+# in CI on every push and pull request.
+packages:
+  - "apps/*"
+  - "packages/*"
+# Postinstall scripts are denied by default; each one allowed here is a decision with a reason.
+allowBuilds:
+  # Next.js's image optimizer. Never invoked: a static export has no optimizer, which is why
+  # next.config.ts sets `images.unoptimized`. Denying it also keeps a native compile out of CI.
+  sharp: false
+  # The native resolver behind eslint-import-resolver-typescript (via eslint-config-next). Its
+  # postinstall only links the prebuilt platform binding pnpm already installed as an optional
+  # dependency — no download, no compile — and without it ESLint's import rules cannot resolve.
+  unrs-resolver: true

@@ -1,0 +1,33 @@
+{
+  "name": "@astro-mine/console",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The Astro-Mine console — the platform's single front door. A Next.js application, statically exported, that calls astro-mine-api from the browser. Deployed, never consumed: it publishes nothing.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/astro-mine/astro-mine-ui.git",
+    "directory": "apps/console"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@astro-mine/api-client": "workspace:*",
+    "@astro-mine/inspectors": "workspace:*",
+    "@astro-mine/ui": "workspace:*",
+    "@astro-mine/view": "workspace:*",
+    "@emotion/cache": "^11.14.0",
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@mui/material": "^9.2.0",
+    "@mui/material-nextjs": "^9.1.1",
+    "next": "^16.2.12",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  }
+}

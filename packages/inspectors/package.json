@@ -1,0 +1,39 @@
+{
+  "name": "@astro-mine/inspectors",
+  "version": "0.0.0",
+  "description": "The artifact-kind to panel registry — the one survivor of the retired Surface contract. A world artifact renders a globe and a policy renders a scorecard, resolved by Core kind, Hub artifact_kind and an attribute predicate.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/astro-mine/astro-mine-ui.git",
+    "directory": "packages/inspectors"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc -b"
+  },
+  "dependencies": {
+    "@astro-mine/ui": "workspace:*",
+    "@astro-mine/view": "workspace:*"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  }
+}

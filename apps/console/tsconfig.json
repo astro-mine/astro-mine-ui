@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // Next.js compiles the app; tsc only checks it. `declaration` is off because there is nothing
+    // to declare — this is an application, not a library.
+    "jsx": "preserve",
+    "noEmit": true,
+    "declaration": false,
+    "declarationMap": false,
+    "allowJs": true,
+    "incremental": true,
+    "plugins": [{ "name": "next" }],
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": [
+    "next-env.d.ts",
+    "next.config.ts",
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": ["node_modules", ".next", "out"],
+  // The app may depend on every package; nothing may depend on the app.
+  "references": [
+    { "path": "../../packages/api-client" },
+    { "path": "../../packages/ui" },
+    { "path": "../../packages/view" },
+    { "path": "../../packages/inspectors" }
+  ]
+}

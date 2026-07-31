@@ -1,0 +1,40 @@
+{
+  "name": "astro-mine-ui-workspace",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Astro-Mine-UI — the front-end distribution. This is the pnpm workspace root: it publishes nothing. The Next.js application lives in apps/console and the shipped @astro-mine packages in packages/.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/astro-mine/astro-mine-ui.git"
+  },
+  "packageManager": "pnpm@11.10.0",
+  "engines": {
+    "node": ">=20.19"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @astro-mine/console dev",
+    "build": "pnpm -r run build",
+    "typecheck": "pnpm -r run typecheck",
+    "lint": "eslint . --max-warnings 0",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "check:layering": "node scripts/check-layering.mjs",
+    "check:layering:test": "node --test scripts/check-layering.test.mjs"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.0",
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^16.2.12",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.9.6",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.65.0"
+  }
+}
