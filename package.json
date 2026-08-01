@@ -23,7 +23,11 @@
     "format:check": "prettier --check .",
     "codegen:api": "node scripts/codegen-api-client.mjs",
     "check:layering": "node scripts/check-layering.mjs",
-    "check:layering:test": "node --test scripts/check-layering.test.mjs"
+    "check:layering:test": "node --test scripts/check-layering.test.mjs",
+    "check:api-drift": "node scripts/check-api-drift.mjs",
+    "check:api-drift:local": "node scripts/check-api-drift.mjs --local",
+    "check:api-types": "node scripts/check-no-handwritten-api-types.mjs",
+    "check:api-types:test": "node --test scripts/check-no-handwritten-api-types.test.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.0",
