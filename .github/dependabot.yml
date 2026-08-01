@@ -1,0 +1,64 @@
+# Dependency update policy for astro-mine-ui.
+#
+# Until now this repository had none, and relied on the org-wide *security*-update default alone.
+# That default is what surfaced the pinned-postcss problem (#25) — but a policy that only speaks
+# when there is a CVE is a policy that lets ordinary version drift accumulate silently, which is how
+# a repository ends up three action majors behind without anyone deciding to be (#26).
+#
+# Grouping is the point of this file as much as the schedule is. Ungrouped, a workspace this size
+# opens a PR per dependency per week, and a review queue nobody can keep up with is indistinguishable
+# from no updates at all — the same failure mode as a permanently red updater.
+
+version: 2
+
+updates:
+  # ---- npm / pnpm -----------------------------------------------------------
+  # `directories` covers the workspace root and every member, so a dependency declared in
+  # apps/console or one of the packages is updated where it is declared rather than ignored.
+  - package-ecosystem: npm
+    directories:
+      - "/"
+      - "/apps/*"
+      - "/packages/*"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      # Everything non-breaking in one PR. CI is the gate: layering, format, typecheck, lint, build
+      # and the two static-export assertions all run on it, so a green group PR has been checked
+      # more thoroughly than a human reading a version number would manage.
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch
+      # Majors stay separate and one per PR. Each one is a decision — Next, React and MUI majors
+      # move the whole front end, and the last three majors in this repo each carried a behaviour
+      # change worth reading the notes for.
+      react-and-next:
+        patterns:
+          - "next"
+          - "react"
+          - "react-dom"
+          - "@types/react*"
+        update-types:
+          - major
+      mui:
+        patterns:
+          - "@mui/*"
+        update-types:
+          - major
+
+  # ---- GitHub Actions -------------------------------------------------------
+  # The lane that would have raised #26 on its own. Actions are grouped without exception: they are
+  # few, and a bump is either safe or immediately red in the same run that proposes it.
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 3
+    groups:
+      actions:
+        patterns:
+          - "*"
