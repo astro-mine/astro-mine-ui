@@ -21,3 +21,25 @@ allowBuilds:
   # postinstall only links the prebuilt platform binding pnpm already installed as an optional
   # dependency — no download, no compile — and without it ESLint's import rules cannot resolve.
   unrs-resolver: true
+
+# Forced resolutions. An override contradicts a version some package chose deliberately, so each one
+# needs a reason and a condition for its own removal.
+overrides:
+  # next@16 depends on postcss at the EXACT version 8.4.31 — a pin, not a range — which is below the
+  # patched version of three advisories and which therefore made every Dependabot run fail with
+  # `security_update_not_possible` (nothing else could move it). A permanently red updater is one
+  # nobody reads, so the alert had to become actionable rather than ambient.
+  #
+  #   GHSA-r28c-9q8g-f849  high    path traversal via sourceMappingURL       patched 8.5.18
+  #   GHSA-6g55-p6wh-862q  high    arbitrary file read via sourceMappingURL  patched 8.5.12
+  #   GHSA-qx2v-qp2m-jg93  medium  XSS via unescaped </style> in stringify   patched 8.5.10
+  #
+  # Exposure here was low and is recorded so the next reader need not re-derive it: all three need
+  # attacker-controlled CSS, this workspace has no .css file, no postcss config and no CSS import,
+  # MUI styles through Emotion at runtime, and postcss appears in none of the static export. That
+  # will stop being true when Cesium's stylesheet arrives with ui#6 — vendored, not hostile, but no
+  # longer "no CSS at all".
+  #
+  # 8.5 is a semver-minor from 8.4, so this is not a leap. REMOVE THIS when next bumps its own pin
+  # to a patched postcss; check with `npm view next dependencies.postcss`.
+  postcss: "^8.5.18"
