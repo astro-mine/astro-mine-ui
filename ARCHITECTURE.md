@@ -25,7 +25,7 @@ point-in-time and read as history.
                     console                apps/    — the application. Nothing sits above it.
 ```
 
-Three rules, and they are the reason this repository is one workspace rather than five:
+Four rules, and they are the reason this repository is one workspace rather than five:
 
 1. **The application may import any package.** It is the composition root.
 2. **A package MUST NOT import the application.** The app is the sink. If the app holds something a
@@ -35,6 +35,11 @@ Three rules, and they are the reason this repository is one workspace rather tha
    globe. Two packages that need the same thing means the thing belongs in `ui` or `view`; and if it
    is _platform behaviour_, it belongs in the platform and then in the API, never in a front-end
    package wearing the wrong clothes.
+4. **A restricted third-party package may be reached only by the package that owns it.** There is
+   one: **`@mui/x-charts` belongs to `@astro-mine/ui`.** The design system owns every chart the
+   application renders, so a page that imports the chart library directly is a chart with no
+   uncertainty discipline — see the obligation below. If the chart you need is not in `@astro-mine/ui`,
+   add it there, with its tests, and import it from there.
 
 **This is not merely documented.** [`scripts/check-layering.mjs`](scripts/check-layering.mjs) fails
 the build on any violation, checking both what a package _declares_ in its manifest and what its
@@ -89,7 +94,7 @@ The workspace root is `private: true` and **publishes nothing**; only the packag
 the `@astro-mine` scope (`conventions.md` §13). `apps/console` carries the scope too and is
 `private: true` with it — it is deployed as a built application, never consumed as a package.
 
-`packages/api-client` and `packages/ui` are filled (`ui#2`, `ui#3`); `view` and `inspectors` are
+`packages/api-client` and `packages/ui` are filled (`ui#2`, `ui#3`, `ui#4`); `view` and `inspectors` are
 still skeletons that build and typecheck empty, so the workspace, the build graph and the layering
 gate stay real before either is under pressure. Each remaining `src/index.ts` names the issue that
 fills it.
@@ -98,9 +103,21 @@ fills it.
 
 `packages/ui/src/theme.ts` holds the one theme — light and dark, carried by MUI's `colorSchemes` —
 and it is **the only file in the workspace that may contain a colour value**. ESLint rejects colour
-literals everywhere else, because a colour written into a component is a colour the contrast gate
-cannot see, and `pnpm check:contrast` measures every pairing the theme declares in both schemes. The
-gate carries its own proof that it can reject, against a deliberately-bad pair.
+literals everywhere else, because a colour written into a component is a colour the gates cannot see.
+
+Two gates measure it, and neither implies the other:
+
+- **`pnpm check:contrast`** — can a mark be seen _against the page_? Every pairing the theme declares,
+  measured against WCAG 2.1 in both schemes, with the categorical chart colours held to the non-text
+  floor (1.4.11).
+- **`pnpm check:palette`** — can two marks be told apart _from each other_? Every pair of the
+  categorical ramp, in both schemes, seen through normal vision and through protanopia, deuteranopia
+  and tritanopia, measured in CIEDE2000. Five colours can each clear 3:1 against white and be one
+  colour to a reader with a red-green deficiency; that is the failure a contrast check cannot see.
+
+Both carry their own proof that they can reject — a contrast pair that fails WCAG, and a pair a
+deuteranope cannot separate. The categorical ramp has **five** entries because that is what those two
+constraints leave room for; `theme.ts` records the reasoning beside it.
 
 ## The rules that outlive any one page
 
@@ -129,7 +146,22 @@ The old design used visx, where a second y-axis was unrepresentable and a null u
 rendered as an open mark _by construction_. **MUI X Charts guarantees neither and ships no error
 bars.** So the discipline becomes ours to enforce: `packages/ui` owns every chart the application
 renders, exports no raw chart primitive, and carries unit tests asserting both properties. A rule
-enforced only by review is a rule that erodes — which is why it is a test. It lands with `ui#4`.
+enforced only by review is a rule that erodes — which is why it is a test.
+
+`ui#4` landed it. Three charts — `BarChart`, `ScatterChart`, `ParallelCoordinates` — and four things
+holding the property that used to hold itself:
+
+- **A null bound renders as an open mark**, dashed and closed by nothing, on every chart that takes a
+  bound. A bound of **`0` is a measurement** and draws a real, capped, zero-length interval; the two
+  are never collapsed. Asserted per chart, in both colour schemes.
+- **A second y-axis is not expressible.** The charts take labels and units, never axis objects.
+  Asserted by `packages/ui/tests/types.test-d.ts`, which `tsc` runs as part of `pnpm typecheck`: a
+  `@ts-expect-error` that stops erroring fails the build.
+- **No page reaches past the design system** — rule 4 above, enforced by the layering gate over both
+  manifests and sources, subpaths and type-only imports included.
+- **Each chart's words are its own.** MUI X renders its SVG `aria-hidden`, so every chart is a
+  `<figure>` whose `<figcaption>` carries the full description — including which values carry no
+  measured bound — and interaction is offered through real buttons outside the graphic.
 
 ## Stack
 
@@ -138,7 +170,7 @@ enforced only by review is a rule that erodes — which is why it is a test. It 
 | Framework       | **Next.js 16** (app router), **static export**                                                           |
 | Language / UI   | **TypeScript 5.9** · **React 19** · **Material UI 9**                                                    |
 | Theme           | One theme, **light and dark only** via MUI `colorSchemes`; colour lives in `packages/ui/src/theme.ts`    |
-| Charts          | **MUI X Charts**, behind the honesty wrappers above (`ui#4`)                                             |
+| Charts          | **MUI X Charts**, behind the honesty wrappers above — private to `packages/ui`                           |
 | 3D / replay     | `@astro-mine/view` (Cesium, MCAP), client-only (`ui#6`)                                                  |
 | API access      | a generated client from the API's OpenAPI document (`ui#2`)                                              |
 | Server state    | `fetch` through the generated client and one `AsyncState` discipline — **deliberately no cache library** |

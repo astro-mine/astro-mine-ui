@@ -22,6 +22,14 @@
 // sources actually *import*. Neither alone is sufficient — a manifest can lie by omission, and a
 // source import can be satisfied by a hoisted transitive install.
 //
+// Rule 4 — a RESTRICTED package may be reached only by the package that owns it. Today there is one:
+//          `@mui/x-charts` belongs to `@astro-mine/ui`, which owns every chart the application
+//          renders and exposes no raw chart primitive (ui.md §7.1). A page that imports the chart
+//          library directly is a chart with no uncertainty discipline, and that is the one failure
+//          mode the whole chart layer exists to prevent. This is not a layering rule about our own
+//          packages, which is why it needs its own table — but it is enforced here because it is the
+//          same question ("who is allowed to depend on what") asked of a third party.
+//
 // Exit 0 = clean; exit 1 = violation, with a precise, fix-oriented message.
 //
 // The rules are exported as `checkLayering(root)` so they can be run against fixture trees
@@ -59,6 +67,22 @@ const ALLOWED_PACKAGE_IMPORTS = {
 const APP = "@astro-mine/console";
 
 const LAYERED = new Set([...Object.keys(ALLOWED_PACKAGE_IMPORTS), APP]);
+
+/**
+ * Third-party packages that belong to exactly one workspace member (rule 4).
+ *
+ * `@mui/x-charts` is `@astro-mine/ui`'s, because the design system "owns every chart the application
+ * renders and exports no raw chart primitive" (ui.md §7.1). That rule used to be a *property*: the
+ * previous chart library could not express a second y-axis or a zero-length bar for an unmeasured
+ * bound. MUI X can express both, so what stops a page drawing a chart with no uncertainty discipline
+ * is no longer the library's API — it is this table plus the design system's own tests.
+ *
+ * A page that needs a chart the design system does not have needs it *in* the design system, with
+ * the open-mark and single-axis rules applied, and then imports it from there.
+ */
+const RESTRICTED_PACKAGES = {
+  "@mui/x-charts": "@astro-mine/ui",
+};
 
 function readJson(path) {
   return JSON.parse(readFileSync(path, "utf8"));
@@ -103,30 +127,67 @@ function collectSources(dir, acc = []) {
 }
 
 /**
- * Every `@astro-mine/*` specifier a source file reaches for.
+ * A bare module specifier, captured down to its owning package.
+ *
+ * Handles the scoped and unscoped forms and drops any subpath, so `@astro-mine/ui/x` and
+ * `@mui/x-charts/BarChart` resolve to the packages they come from. Relative specifiers (`./x`) and
+ * builtins (`node:fs`) cannot match, because a package name may not start with `.` and may not
+ * contain a colon.
+ */
+const SPECIFIER = "((?:@[a-z0-9][a-z0-9-._~]*\\/)?[a-z0-9][a-z0-9-._~]*)(?:\\/[^\"']*)?";
+
+/**
+ * Every package a source file reaches for.
  *
  * Deliberately broad and syntactic. It catches `import`, `export ... from`, side-effect imports,
  * `import type` / `export type` (see the header — type edges are edges), and `import(...)`
  * expressions, which matter here because Cesium and the replay layer are mounted through dynamic
- * import and would otherwise be an unchecked back door. Subpath specifiers (`@astro-mine/ui/x`)
- * resolve to their owning package.
+ * import and would otherwise be an unchecked back door.
+ *
+ * It reads *every* package rather than only ours, because rule 4 asks the same question about a
+ * third party: `@mui/x-charts` is one workspace member's and no one else's.
  */
-export function importedAstroMinePackages(source) {
+export function importedPackages(source) {
   const found = new Set();
   const patterns = [
     // import x from "…" · export { x } from "…" · import type { X } from "…"
-    /(?:^|[\s;}])(?:import|export)\b[\s\S]*?\bfrom\s*["'](@astro-mine\/[a-z0-9-]+)(?:\/[^"']*)?["']/g,
+    new RegExp(`(?:^|[\\s;}])(?:import|export)\\b[\\s\\S]*?\\bfrom\\s*["']${SPECIFIER}["']`, "g"),
     // import "…"  (side effect)
-    /(?:^|[\s;}])import\s*["'](@astro-mine\/[a-z0-9-]+)(?:\/[^"']*)?["']/g,
+    new RegExp(`(?:^|[\\s;}])import\\s*["']${SPECIFIER}["']`, "g"),
     // import("…") · await import("…")
-    /\bimport\s*\(\s*["'](@astro-mine\/[a-z0-9-]+)(?:\/[^"']*)?["']\s*\)/g,
+    new RegExp(`\\bimport\\s*\\(\\s*["']${SPECIFIER}["']\\s*\\)`, "g"),
     // require("…") — not our module system, but cheap to catch and unambiguous if it appears
-    /\brequire\s*\(\s*["'](@astro-mine\/[a-z0-9-]+)(?:\/[^"']*)?["']\s*\)/g,
+    new RegExp(`\\brequire\\s*\\(\\s*["']${SPECIFIER}["']\\s*\\)`, "g"),
   ];
   for (const re of patterns) {
     for (const m of source.matchAll(re)) found.add(m[1]);
   }
   return found;
+}
+
+/** The `@astro-mine/*` subset, which is what the layering rules 1–3 are about. */
+export function importedAstroMinePackages(source) {
+  return new Set([...importedPackages(source)].filter((name) => name.startsWith("@astro-mine/")));
+}
+
+/**
+ * Is `importer` allowed to reach for the restricted package `imported`?
+ *
+ * @returns {null | string} null when it is allowed or the package is unrestricted, otherwise the
+ *          reason it is not.
+ */
+function restrictionViolation(importer, imported) {
+  const owner = RESTRICTED_PACKAGES[imported];
+  if (owner === undefined || owner === importer) return null;
+
+  return (
+    `${imported} belongs to ${owner}, and nothing else in this workspace may reach for it. ` +
+    `${owner} owns every chart the application renders and exposes no raw chart primitive ` +
+    `(ui.md §7.1): a null uncertainty bound renders as an open mark and a second y-axis is not ` +
+    `expressible, and both hold because ${owner}'s wrappers and their tests make them hold. A ` +
+    `chart drawn past ${owner} has neither property. If the chart you need is not there, add it ` +
+    `there — with its tests — and import it from ${owner}.`
+  );
 }
 
 /**
@@ -177,17 +238,45 @@ export function checkLayering(root) {
   for (const dir of dirs) {
     const pkg = readJson(join(dir, "package.json"));
     const name = pkg.name;
-    if (!LAYERED.has(name)) continue;
 
-    // --- the manifest half -------------------------------------------------
-    const declared = {
+    const declared = Object.keys({
       ...(pkg.dependencies ?? {}),
       ...(pkg.peerDependencies ?? {}),
       ...(pkg.devDependencies ?? {}),
       ...(pkg.optionalDependencies ?? {}),
-    };
-    for (const dep of Object.keys(declared)) {
-      const reason = edgeViolation(name, dep);
+    });
+    const sources = collectSources(dir).map((file) => ({
+      file,
+      imported: importedPackages(readFileSync(file, "utf8")),
+    }));
+
+    // --- rules 1-3: the layered graph --------------------------------------
+    // Only for members of the graph. A package outside it is not this script's business.
+    if (LAYERED.has(name)) {
+      for (const dep of declared) {
+        const reason = edgeViolation(name, dep);
+        if (reason) {
+          violations.push(
+            `[manifest] ${relative(root, join(dir, "package.json"))} declares a dependency on ` +
+              `${dep} — ${reason}`,
+          );
+        }
+      }
+      for (const { file, imported } of sources) {
+        for (const specifier of imported) {
+          const reason = edgeViolation(name, specifier);
+          if (reason) {
+            violations.push(`[import]   ${relative(root, file)} imports ${specifier} — ${reason}`);
+          }
+        }
+      }
+    }
+
+    // --- rule 4: restricted third-party packages ---------------------------
+    // Applies to EVERY workspace member, including ones outside the layered graph — the point is
+    // that only one member may reach for the package, so the check must see all of them.
+    for (const dep of declared) {
+      const reason = restrictionViolation(name, dep);
       if (reason) {
         violations.push(
           `[manifest] ${relative(root, join(dir, "package.json"))} declares a dependency on ` +
@@ -195,13 +284,11 @@ export function checkLayering(root) {
         );
       }
     }
-
-    // --- the source half ---------------------------------------------------
-    for (const file of collectSources(dir)) {
-      for (const imported of importedAstroMinePackages(readFileSync(file, "utf8"))) {
-        const reason = edgeViolation(name, imported);
+    for (const { file, imported } of sources) {
+      for (const specifier of imported) {
+        const reason = restrictionViolation(name, specifier);
         if (reason) {
-          violations.push(`[import]   ${relative(root, file)} imports ${imported} — ${reason}`);
+          violations.push(`[import]   ${relative(root, file)} imports ${specifier} — ${reason}`);
         }
       }
     }

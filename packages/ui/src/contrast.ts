@@ -19,8 +19,13 @@ import type { Theme } from "@mui/material/styles";
 
 import { CONTRAST_THRESHOLDS, type ColorSchemeName, type ContrastLevel } from "./theme.js";
 
-/** A colour, decomposed. `r`/`g`/`b` are 0–255; `a` is 0–1. */
-interface Rgba {
+/**
+ * A colour, decomposed. `r`/`g`/`b` are 0–255; `a` is 0–1.
+ *
+ * Exported because `colorVision.ts` measures the same palette through a different lens and must not
+ * re-implement the parser: two parsers is two chances to disagree about what a colour is.
+ */
+export interface Rgba {
   r: number;
   g: number;
   b: number;

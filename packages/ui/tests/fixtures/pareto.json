@@ -1,0 +1,37 @@
+[
+  {
+    "id": "cand-01",
+    "label": "Candidate 01",
+    "onFront": true,
+    "x": { "value": 1240, "bound": 45 },
+    "y": { "value": 0.82, "bound": 0.04 }
+  },
+  {
+    "id": "cand-02",
+    "label": "Candidate 02",
+    "onFront": true,
+    "x": { "value": 1810, "bound": 60 },
+    "y": { "value": 0.91, "bound": null }
+  },
+  {
+    "id": "cand-03",
+    "label": "Candidate 03",
+    "onFront": false,
+    "x": { "value": 1520, "bound": null },
+    "y": { "value": 0.63, "bound": 0.07 }
+  },
+  {
+    "id": "cand-04",
+    "label": "Candidate 04",
+    "onFront": false,
+    "x": { "value": 980, "bound": 30 },
+    "y": { "value": 0.55, "bound": 0 }
+  },
+  {
+    "id": "cand-05",
+    "label": "Candidate 05",
+    "onFront": false,
+    "x": { "value": 2100, "bound": null },
+    "y": { "value": 0.71, "bound": null }
+  }
+]
