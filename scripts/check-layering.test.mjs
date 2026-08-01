@@ -16,7 +16,7 @@ import { join } from "node:path";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { checkLayering, importedAstroMinePackages } from "./check-layering.mjs";
+import { checkLayering, importedAstroMinePackages, importedPackages } from "./check-layering.mjs";
 
 /**
  * Build a workspace fixture.
@@ -261,4 +261,115 @@ test("a package outside the layered graph is not this script's business", () => 
       assert.deepEqual(checkLayering(root).violations, []);
     },
   );
+});
+
+// --- rule 4: the chart library belongs to the design system (ui#4) ----------
+//
+// The rule that keeps `ui.md` §7.1 true once MUI X Charts is in the tree. The real workspace has no
+// violation to show — `@mui/x-charts` is declared by `packages/ui` and by nothing else — so, as
+// with every other rule here, the failure modes are proven against fixtures.
+
+test("rule 4 — the design system may depend on the chart library", () => {
+  withFixture(
+    {
+      ...CLEAN,
+      ui: {
+        pkg: { name: "@astro-mine/ui", dependencies: { "@mui/x-charts": "^9.10.1" } },
+        sources: { "index.ts": 'import { BarChart } from "@mui/x-charts/BarChart";\n' },
+      },
+    },
+    (root) => {
+      assert.deepEqual(checkLayering(root).violations, []);
+    },
+  );
+});
+
+test("rule 4 — the application may not (manifest)", () => {
+  withFixture(
+    {
+      ...CLEAN,
+      console: {
+        slot: "apps",
+        pkg: { name: "@astro-mine/console", dependencies: { "@mui/x-charts": "^9.10.1" } },
+        sources: { "page.ts": "export {};\n" },
+      },
+    },
+    (root) => {
+      const { violations } = checkLayering(root);
+      assert.equal(violations.length, 1);
+      assert.match(violations[0], /@mui\/x-charts belongs to @astro-mine\/ui/);
+      // The message must say where the chart goes instead, not just that this is forbidden.
+      assert.match(violations[0], /add it there — with its tests/);
+    },
+  );
+});
+
+test("rule 4 — a page may not import it, even through a subpath", () => {
+  withFixture(
+    {
+      ...CLEAN,
+      console: {
+        slot: "apps",
+        pkg: { name: "@astro-mine/console" },
+        sources: {
+          "page.ts": 'import { ScatterChart } from "@mui/x-charts/ScatterChart";\nexport {};\n',
+        },
+      },
+    },
+    (root) => {
+      const { violations } = checkLayering(root);
+      assert.equal(violations.length, 1, "a subpath must resolve to its owning package");
+      assert.match(violations[0], /imports @mui\/x-charts/);
+    },
+  );
+});
+
+test("rule 4 — a type-only import is still a reach for the chart library", () => {
+  withFixture(
+    {
+      ...CLEAN,
+      view: {
+        pkg: { name: "@astro-mine/view" },
+        sources: { "index.ts": 'import type { BarSeriesType } from "@mui/x-charts";\n' },
+      },
+    },
+    (root) => {
+      const { violations } = checkLayering(root);
+      assert.equal(violations.length, 1);
+      assert.match(violations[0], /@mui\/x-charts belongs to @astro-mine\/ui/);
+    },
+  );
+});
+
+test("rule 4 — an unrestricted third party is nobody's business", () => {
+  withFixture(
+    {
+      ...CLEAN,
+      view: {
+        pkg: { name: "@astro-mine/view", dependencies: { "@mui/material": "^9.2.0" } },
+        sources: { "index.ts": 'import Box from "@mui/material/Box";\n' },
+      },
+    },
+    (root) => {
+      assert.deepEqual(checkLayering(root).violations, []);
+    },
+  );
+});
+
+test("the scanner resolves every package, not only ours", () => {
+  const found = importedPackages(`
+    import Box from "@mui/material/Box";
+    import { useState } from "react";
+    import a from "@astro-mine/ui";
+    import "./local-module";
+    import { readFileSync } from "node:fs";
+    const c = await import("@mui/x-charts/hooks");
+  `);
+  // The relative specifier and the builtin cannot be package names and must not appear.
+  assert.deepEqual([...found].sort(), [
+    "@astro-mine/ui",
+    "@mui/material",
+    "@mui/x-charts",
+    "react",
+  ]);
 });

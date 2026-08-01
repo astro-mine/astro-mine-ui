@@ -11,14 +11,17 @@
 //   - "No page in the repository defines its own loading, error or empty markup; `AsyncState` is the
 //     only one, asserted by ... the absence of alternatives in the export surface." A rule holds
 //     because there is nothing else to reach for, not because a reviewer remembered it.
-//   - "No raw chart primitive escapes `@astro-mine/ui`" (ui.md §7.1). `ui#4` adds the chart layer;
-//     what it must never add is a re-export of a MUI X chart, because a chart reached directly is a
-//     chart with no uncertainty discipline. Asserting it now is what makes that a deliberate
-//     decision later rather than an accident.
+//   - "No raw chart primitive escapes `@astro-mine/ui`" (ui.md §7.1). `ui#4` added the chart layer,
+//     and what it must never add is a re-export of a MUI X chart: a chart reached directly is a
+//     chart with no uncertainty discipline, because MUI X guarantees neither the open mark nor the
+//     single axis. The three charts this package exports share their *names* with MUI X components
+//     and must not share their identity, which is asserted here object-by-object.
 
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
+import { BarChart as MuiBarChart } from "@mui/x-charts/BarChart";
+import { ScatterChart as MuiScatterChart } from "@mui/x-charts/ScatterChart";
 import { describe, expect, it } from "vitest";
 
 import * as surface from "../src/index.js";
@@ -46,6 +49,7 @@ describe("the honesty kit", () => {
     expect(exported).toEqual(
       [
         "AsyncState",
+        "BarChart",
         "COLOR_SCHEMES",
         "COLOR_SCHEME_ATTRIBUTE",
         "CONTRAST_PAIRS",
@@ -56,8 +60,10 @@ describe("the honesty kit", () => {
         "Digest",
         "EmptyState",
         "PALETTES",
+        "ParallelCoordinates",
         "ProvenanceList",
         "RunnerBadge",
+        "ScatterChart",
         "StandInBanner",
         "ThemeRegistry",
         "UncertaintyValue",
@@ -114,10 +120,19 @@ describe("no raw chart primitive escapes", () => {
 
   it("re-exports nothing from MUI X Charts", () => {
     // The other half of the same rule: a wrapper that passes a MUI X component straight through is
-    // the same hole with a nicer name. `ui#4` adds `@mui/x-charts` as a dependency; until then the
-    // package must not depend on it at all.
-    const declared = allDependencies("dependencies", "peerDependencies");
-    expect(declared.filter((name) => name.includes("x-charts"))).toEqual([]);
+    // the same hole with a nicer name, and `BarChart` and `ScatterChart` are exactly the two names
+    // where the swap would go unnoticed in review.
+    expect(surface.BarChart).not.toBe(MuiBarChart);
+    expect(surface.ScatterChart).not.toBe(MuiScatterChart);
+  });
+
+  it("keeps the chart library a private dependency, never a peer", () => {
+    // A peer dependency is an instruction to the consumer to install it — which would put
+    // `@mui/x-charts` in the application's own node_modules and make the layering gate the only
+    // thing standing between a page and a raw chart. As a plain dependency it is this package's,
+    // and pnpm's isolated layout means a page cannot resolve it even by accident.
+    expect(Object.keys(manifest.dependencies ?? {})).toContain("@mui/x-charts");
+    expect(allDependencies("peerDependencies").filter((n) => n.includes("x-charts"))).toEqual([]);
   });
 });
 

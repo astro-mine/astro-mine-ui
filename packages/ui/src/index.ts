@@ -13,9 +13,12 @@
 //   1. There is exactly ONE loading / error / empty discipline — `AsyncState`. No `Spinner`, no
 //      `Loading`, no `ErrorState`, nothing a page could reach for instead. The rule that no page
 //      writes its own is enforced by there being no alternative to write it with.
-//   2. NO raw chart primitive escapes this package (ui.md §7.1). `ui#4` adds the chart layer with
-//      the error-bar and parallel-coordinates wrappers; what it must never add is a re-export of a
-//      MUI X chart, because a chart reached directly is a chart with no uncertainty discipline.
+//   2. NO raw chart primitive escapes this package (ui.md §7.1). `ui#4` added the chart layer —
+//      three charts, each with the error-bar and open-mark discipline built in. What leaves this
+//      package is a chart with a unit, a title and an uncertainty rule; what does not leave it is an
+//      axis, a scale, a series or anything else a page could compose the wrong chart out of.
+//      `@mui/x-charts` is a private dependency, and `scripts/check-layering.mjs` fails the build if
+//      anything else in the workspace reaches for it.
 //
 // `InspectorSlot` is named in `ui.md` §2's kit but lands with `ui#7`, which owns the artifact
 // inspector registry it is the extension point for.
@@ -46,3 +49,20 @@ export {
 export { RunnerBadge, type RunnerBadgeProps } from "./components/RunnerBadge.js";
 export { StandInBanner, type StandInBannerProps } from "./components/StandInBanner.js";
 export { UncertaintyValue, type UncertaintyValueProps } from "./components/UncertaintyValue.js";
+
+// The chart layer (ui#4). Three charts and the vocabulary they take — no axis, no scale, no series
+// primitive, and nothing re-exported from `@mui/x-charts`.
+export { BarChart, type BarChartProps } from "./charts/BarChart.js";
+export {
+  ParallelCoordinates,
+  type ParallelCoordinatesProps,
+} from "./charts/ParallelCoordinates.js";
+export { ScatterChart, type ScatterChartProps } from "./charts/ScatterChart.js";
+export type {
+  BarDatum,
+  BoundState,
+  Measured,
+  ParallelAxis,
+  ParallelRow,
+  ScatterPoint,
+} from "./charts/model.js";

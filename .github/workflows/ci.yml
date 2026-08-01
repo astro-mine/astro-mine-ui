@@ -93,6 +93,15 @@ jobs:
       - name: Contrast (WCAG 2.1 AA, light and dark)
         run: pnpm check:contrast
 
+      # THE COLOUR-VISION LANE (ui#4). The contrast lane asks whether a mark can be seen against the
+      # page; this asks whether two marks can be told apart — every pair of the categorical ramp, in
+      # both schemes, through normal vision and all three dichromacies. Neither implies the other:
+      # five colours can each clear 3:1 against white and be one colour to a reader with a
+      # red-green deficiency, which is roughly one man in twelve and a failure a chart legend cannot
+      # survive. Its own step, and its own companion proving the check rejects a bad pair.
+      - name: Colour-vision separation (categorical palette, light and dark)
+        run: pnpm check:palette
+
       - name: Format check (prettier)
         run: pnpm format:check
 

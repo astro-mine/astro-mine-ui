@@ -61,11 +61,13 @@ const config = [
   {
     files: ["apps/**/*.{ts,tsx}", "packages/**/*.{ts,tsx}"],
     ignores: [
-      // The one file colour is allowed to exist in, and the gate that measures it.
+      // The one file colour is allowed to exist in, and the gates that measure it.
       "packages/ui/src/theme.ts",
       "packages/ui/src/contrast.ts",
-      // The gate's own proofs, which need deliberately-bad colours to reject.
+      // The gates' own proofs, which need deliberately-bad colours to reject: a contrast pair that
+      // fails WCAG, and a categorical pair that a deuteranope cannot separate (ui#4).
       "packages/ui/tests/contrast*.test.ts",
+      "packages/ui/tests/palette*.test.ts",
       // Generated from the OpenAPI document; not hand-written, and not ours to lint.
       "packages/api-client/src/generated/**",
     ],

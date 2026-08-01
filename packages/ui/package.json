@@ -28,7 +28,11 @@
     "build": "tsc -b",
     "typecheck": "tsc -b && tsc -p tsconfig.test.json",
     "test": "vitest run",
-    "test:contrast": "vitest run tests/contrast.test.ts tests/contrast-gate.test.ts"
+    "test:contrast": "vitest run tests/contrast.test.ts tests/contrast-gate.test.ts",
+    "test:palette": "vitest run tests/palette.test.ts tests/palette-gate.test.ts"
+  },
+  "dependencies": {
+    "@mui/x-charts": "^9.10.1"
   },
   "peerDependencies": {
     "@emotion/react": "^11.14.0",

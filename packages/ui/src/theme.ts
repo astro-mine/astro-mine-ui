@@ -43,10 +43,12 @@ declare module "@mui/material/styles" {
   interface Palette {
     standIn: PaletteColor;
     degraded: PaletteColor;
+    categorical: CategoricalPalette;
   }
   interface PaletteOptions {
     standIn?: PaletteColorOptions;
     degraded?: PaletteColorOptions;
+    categorical?: CategoricalPalette;
   }
 
   // Opts the *types* into the CSS-variables theme. Without this, `Theme` has no `colorSchemes` or
@@ -83,6 +85,64 @@ declare module "@mui/material/Chip" {
   }
 }
 
+// --- the categorical palette ------------------------------------------------
+
+/**
+ * The categorical series, in the order a chart assigns them.
+ *
+ * **Five, and the count is a finding rather than a preference.** Every entry must clear two floors
+ * at once: WCAG 1.4.11's 3:1 against *both* page surfaces, and a perceptual separation from every
+ * other entry under normal vision *and* under all three dichromacies (`colorVision.ts`). Those
+ * constraints fight — non-text contrast pushes the light scheme's colours dark and the dark scheme's
+ * light, which is exactly the compression that leaves a palette no room to separate. Search says six
+ * is reachable only by taking the ramp to near-black and near-white extremes that look like an
+ * accident; five holds with real margin. The application's charts encode at most three categories
+ * today, so this is not a ceiling anyone is standing on — and if a sixth is ever wanted, the gate
+ * will say plainly whether it can be had.
+ */
+export const CATEGORICAL_SERIES = ["series1", "series2", "series3", "series4", "series5"] as const;
+
+export type CategoricalSeriesKey = (typeof CATEGORICAL_SERIES)[number];
+
+export type CategoricalPalette = { readonly [K in CategoricalSeriesKey]: string };
+
+/**
+ * The floor `tests/palette.test.ts` holds the categorical ramp to: the smallest CIEDE2000 distance
+ * any two series may have, through any of the four forms of vision measured.
+ *
+ * **12.** One ΔE2000 unit is roughly the just-noticeable difference between two adjacent patches
+ * under ideal viewing; separated marks on a chart, seen peripherally and at small size, need an
+ * order more than that. Twelve is comfortably above the ~10 usually quoted as "clearly different"
+ * and is a floor the shipped palettes clear by four units in both schemes — the margin is what lets
+ * a colour be nudged for legibility without the gate becoming the thing that blocks it.
+ */
+export const CATEGORICAL_SEPARATION = 12;
+
+/**
+ * Light. Deep and muted, because 3:1 against a white page is a *dark* constraint: anything bright
+ * enough to look cheerful here is too pale to be seen as a mark.
+ *
+ * Read as a set rather than as five hues: the ramp deliberately varies **lightness** as well as
+ * hue, because lightness is the one channel that survives every dichromacy. Two colours separated
+ * only by hue on the red–green axis are one colour to a protanope, whatever their names.
+ */
+const categoricalLight: CategoricalPalette = {
+  series1: "#12417e",
+  series2: "#8f7405",
+  series3: "#b03259",
+  series4: "#1e7f8e",
+  series5: "#24211c",
+};
+
+/** Dark. The same structure, inverted into the range a dark surface leaves usable. */
+const categoricalDark: CategoricalPalette = {
+  series1: "#6f95cf",
+  series2: "#eb8a12",
+  series3: "#a86a80",
+  series4: "#57dad8",
+  series5: "#c6d5a8",
+};
+
 /**
  * Light. A near-white page rather than pure white, so a `paper` surface can sit *above* it without
  * a border doing all the work.
@@ -106,6 +166,7 @@ const light = {
   success: { main: "#1c6b3f", light: "#2f8d58", dark: "#0f4a29", contrastText: "#ffffff" },
   standIn: { main: "#8a5300", light: "#fdf3e2", dark: "#5e3800", contrastText: "#ffffff" },
   degraded: { main: "#5b4b8a", light: "#f0edf7", dark: "#3d3160", contrastText: "#ffffff" },
+  categorical: categoricalLight,
   background: { default: "#f7f8fa", paper: "#ffffff" },
   text: {
     primary: "#15181d",
@@ -139,6 +200,7 @@ const dark = {
   success: { main: "#8fd7ab", light: "#bde8cc", dark: "#63b384", contrastText: "#04230f" },
   standIn: { main: "#f0c07a", light: "#3a2c12", dark: "#c8974f", contrastText: "#2a1a00" },
   degraded: { main: "#c2b3e8", light: "#2a2440", dark: "#9a88c9", contrastText: "#14102a" },
+  categorical: categoricalDark,
   background: { default: "#101317", paper: "#181c22" },
   text: {
     primary: "#e7eaef",
@@ -286,6 +348,21 @@ export const CONTRAST_PAIRS: readonly (readonly [string, string, ContrastLevel])
   // Alert this theme defaults to is covered without a separate entry.
   ["primary.main", "background.default", "ui"],
   ["primary.main", "background.paper", "ui"],
+
+  // Chart marks (1.4.11). A bar, a scatter mark and a polyline are "graphical objects required to
+  // understand the content", which is the clause 1.4.11 is about — so every categorical series is
+  // held to the non-text floor against *both* surfaces, because a chart appears on the page and
+  // inside a card. This is the half of the palette's contract the contrast gate owns; the other
+  // half — that the series are distinguishable from **each other**, including under colour-vision
+  // deficiency — is `tests/palette.test.ts`, and neither implies the other. Five colours can each
+  // be perfectly legible against the page and identical to one another.
+  ...CATEGORICAL_SERIES.flatMap(
+    (series) =>
+      [
+        [`categorical.${series}`, "background.paper", "ui"],
+        [`categorical.${series}`, "background.default", "ui"],
+      ] as const,
+  ),
 ];
 
 /**

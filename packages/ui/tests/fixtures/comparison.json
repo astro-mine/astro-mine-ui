@@ -1,0 +1,60 @@
+{
+  "axes": [
+    { "key": "water_ice_yield", "label": "Water-ice yield", "unit": "kg/sol" },
+    { "key": "fleet_mass", "label": "Fleet mass", "unit": "kg" },
+    { "key": "energy_per_kg", "label": "Energy per kg", "unit": "kW·h/kg" },
+    { "key": "coverage", "label": "Coverage", "unit": null }
+  ],
+  "rows": [
+    {
+      "id": "cand-01",
+      "label": "Candidate 01",
+      "onFront": true,
+      "values": {
+        "water_ice_yield": 142.8,
+        "fleet_mass": 1240,
+        "energy_per_kg": 3.4,
+        "coverage": 0.82
+      }
+    },
+    {
+      "id": "cand-02",
+      "label": "Candidate 02",
+      "onFront": true,
+      "values": {
+        "water_ice_yield": 118.2,
+        "fleet_mass": 1810,
+        "energy_per_kg": 2.9,
+        "coverage": 0.91
+      }
+    },
+    {
+      "id": "cand-03",
+      "label": "Candidate 03",
+      "onFront": false,
+      "values": {
+        "water_ice_yield": 96.5,
+        "fleet_mass": 1520,
+        "energy_per_kg": 4.1,
+        "coverage": 0.63
+      }
+    },
+    {
+      "id": "cand-04",
+      "label": "Candidate 04",
+      "onFront": false,
+      "values": {
+        "water_ice_yield": 88.1,
+        "fleet_mass": 980,
+        "energy_per_kg": 5.2,
+        "coverage": 0.55
+      }
+    },
+    {
+      "id": "cand-05",
+      "label": "Candidate 05",
+      "onFront": false,
+      "values": { "water_ice_yield": 74.9, "fleet_mass": 2100 }
+    }
+  ]
+}
