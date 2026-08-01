@@ -69,6 +69,14 @@ Two things that will bite, both consequences of the static export and both expla
 - **`jsdom` does not implement every `File` method**, so a page reading an uploaded file must use an
   API `jsdom` has (`FileReader`, not `File.text()`).
 
+### `next-env.d.ts` is generated and untracked
+
+Do not commit `apps/console/next-env.d.ts`, and do not restore it citing the Next.js convention to
+track it. That convention predates the typed-routes reference, which makes the file's contents differ
+between commands — `next dev` and `next build` each write a different path into it — so there is no
+single correct committed state, and tracking it left `git status` permanently dirty and aborted
+`git checkout` after `pnpm dev`. Both commands regenerate it, and `pnpm typecheck` passes without it.
+
 ### Why `react` is a root devDependency
 
 The root renders nothing. It is there for the tooling that runs at the root: `eslint-plugin-react`'s
