@@ -60,6 +60,28 @@ jobs:
       - name: Layering check — its own failure modes
         run: pnpm check:layering:test
 
+      # The property the generated client exists to establish: nobody has hand-copied the API's
+      # shapes back in, and no page opens its own request. Cheap, static, and the thing that decays.
+      - name: No hand-written API request or response types
+        run: pnpm check:api-types
+
+      - name: No hand-written API types — its own failure modes
+        run: pnpm check:api-types:test
+
+      # THE CONTRACT LANE (ui#2). Two assertions in one script: the committed client is what the
+      # vendored document generates, and the vendored document is what astro-mine-api serves at
+      # HEAD. The second needs read access to that private repository — CORE_REPO_TOKEN is the
+      # org's private-repo read credential, the same secret name the API's own CI uses for the
+      # platform. Here it reads astro-mine-api rather than the platform; one name, one rotation.
+      #
+      # If the token is absent or expired this lane FAILS and says so in those words. It does not
+      # skip: a contract check that goes quiet when its credential lapses has stopped existing, and
+      # it would go quiet on exactly the day nobody is looking.
+      - name: Contract — the client is in step with the API
+        env:
+          CORE_REPO_TOKEN: ${{ secrets.CORE_REPO_TOKEN }}
+        run: pnpm check:api-drift
+
       - name: Format check (prettier)
         run: pnpm format:check
 
@@ -68,6 +90,12 @@ jobs:
 
       - name: Lint (eslint, 0 warnings)
         run: pnpm lint
+
+      # Unit tests, from source — they need no build, so they run before it and fail faster. Today
+      # this is the api-client's 59; `pnpm -r` picks up each package as it gains a `test` script.
+      # ui#8 widens this lane into the component/coverage/a11y/e2e set the plan describes.
+      - name: Unit tests (vitest)
+        run: pnpm test
 
       - name: Build (packages, then the static export)
         run: pnpm build

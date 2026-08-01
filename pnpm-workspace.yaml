@@ -14,6 +14,13 @@ packages:
   - "packages/*"
 # Postinstall scripts are denied by default; each one allowed here is a decision with a reason.
 allowBuilds:
+  # MSW's postinstall copies `mockServiceWorker.js` into a public directory, for intercepting
+  # requests inside a real browser. This workspace never uses that half: unit and component tests
+  # run `setupServer` in Node, and the Playwright lane drives the built export against a seeded API
+  # rather than a service worker. Denying it keeps a script that writes into `public/` out of every
+  # install. REVISIT if a browser-side worker is ever wanted — that is a deliberate change, not
+  # something to re-enable to make an error message go away.
+  msw: false
   # Next.js's image optimizer. Never invoked: a static export has no optimizer, which is why
   # next.config.ts sets `images.unoptimized`. Denying it also keeps a native compile out of CI.
   sharp: false
