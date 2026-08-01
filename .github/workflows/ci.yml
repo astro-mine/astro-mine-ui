@@ -20,17 +20,26 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      # All three actions run on the Node 24 action runtime. The v4 majors targeted Node 20, which
+      # the runner already refused to honour — it forced them onto 24 and annotated every run,
+      # including the green ones. Bumping is what removes the warning before it becomes an error.
+      - uses: actions/checkout@v7
 
-      # The pnpm version comes from package.json "packageManager" (pnpm@11.10.0). Specifying it here
-      # too is an error, not a belt-and-braces.
+      # v6 is the first major that declares support for pnpm v11, which is what this workspace
+      # pins (pnpm@11.10.0, from package.json "packageManager"). The version is NOT repeated here:
+      # specifying it in both places is an error, not a belt-and-braces.
       - name: Install pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
 
-      # The version comes from .nvmrc, and the floor is pnpm's, not ours: pnpm 11.10.0 declares
+      # The Node version comes from .nvmrc, and the floor is pnpm's, not ours: pnpm 11.10.0 declares
       # engines.node >= 22.13 and crashes on Node 20 with "No such built-in module: node:sqlite".
+      #
+      # `cache: pnpm` is load-bearing and must stay explicit. setup-node v6 limited *automatic*
+      # caching to npm — with no `cache` input, pnpm and yarn are no longer cached at all. Naming it
+      # is the supported way to keep the pnpm store cached, and dropping this line would not fail
+      # the build; it would just make every run minutes slower, silently.
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: pnpm
