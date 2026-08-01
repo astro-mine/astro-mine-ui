@@ -14,3 +14,12 @@ apps/*/next-env.d.ts
 
 # Generated/vendored bytes that must not be reformatted.
 pnpm-lock.yaml
+
+# The OpenAPI document, vendored byte-for-byte from astro-mine-api's own committed snapshot. The
+# drift gate compares the two as BYTES, so a Prettier pass here would turn a contract check into an
+# argument about JSON style — and would make every upstream refresh show a diff nobody made.
+#
+# This applies to the document only. The TypeScript under src/generated/ IS formatted, by the
+# generator itself, so `pnpm format:check` stays green without an exemption that would also hide a
+# hand edit.
+packages/api-client/openapi/openapi.json
