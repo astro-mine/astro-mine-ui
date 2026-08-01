@@ -25,7 +25,7 @@ pnpm dev          # http://localhost:3000
 pnpm build        # → apps/console/out, a static bundle any host can serve
 ```
 
-Node ≥ 20.19 and pnpm 11.10.0 (`corepack enable`). No registry credential is needed —
+Node ≥ 22.13 and pnpm 11.10.0 (`corepack enable`). No registry credential is needed —
 see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## What is in here

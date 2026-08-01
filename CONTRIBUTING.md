@@ -5,7 +5,7 @@ Org-wide policy — governance, the code of conduct, security reporting and expo
 
 ## Prerequisites
 
-- **Node ≥ 20.19** (see `.nvmrc`).
+- **Node ≥ 22.13** (see `.nvmrc`) — the floor is pnpm's, not ours; pnpm 11.10.0 crashes on Node 20.
 - **pnpm 11.10.0** — pinned in `package.json` (`packageManager`); `corepack enable` picks it up.
 
 No registry credential is needed to build this repository: every `@astro-mine` dependency here is a
