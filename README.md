@@ -10,10 +10,10 @@ its graphical front door: a statically exported Next.js application that calls
 [`astro-mine-api`](https://github.com/astro-mine/astro-mine-api) from the browser, plus the
 `@astro-mine/*` packages it is built from.
 
-> **Status: stood up, not yet built out.** The workspace, the application shell, the package
-> skeletons and the CI gates exist. **No page has been written and nothing calls the API yet.** The
-> front end is being _rebuilt_ — not moved — from the four repositories it used to live in; the work
-> is tracked in
+> **Status: the foundations, not yet the pages.** The workspace, the CI gates, the generated API
+> client and the design system — the theme and the honesty kit — exist. **No page has been written
+> and nothing calls the API yet.** The front end is being _rebuilt_ — not moved — from the four
+> repositories it used to live in; the work is tracked in
 > [the UI rebuild plan](https://github.com/astro-mine/docs/blob/main/tpm/ui-rebuild-plan.md) over
 > Waves 28–30.
 
@@ -38,9 +38,9 @@ see [CONTRIBUTING.md](CONTRIBUTING.md).
 | `packages/view`       | `@astro-mine/view`       | The Cesium globe, MCAP replay, timeline and frames. Client-only.                                        |
 | `packages/inspectors` | `@astro-mine/inspectors` | The artifact-kind → panel registry.                                                                     |
 
-The four packages are deliberately **empty skeletons**: each builds and typechecks so the workspace,
-the build graph and the layering gate are real now, rather than being assembled later under pressure.
-Each `src/index.ts` names the issue that fills it.
+`api-client` and `ui` are filled; `view` and `inspectors` are still **empty skeletons** that build
+and typecheck, so the workspace, the build graph and the layering gate are real now rather than being
+assembled later under pressure. Each remaining `src/index.ts` names the issue that fills it.
 
 ## The one rule
 
@@ -58,7 +58,7 @@ not in a dynamic path segment.
 - [ARCHITECTURE.md](ARCHITECTURE.md) — the repo-local structure and the decisions behind it.
 - [CONTRIBUTING.md](CONTRIBUTING.md) — setup, the check chain, and where code goes.
 - [`architecture/ui.md`](https://github.com/astro-mine/docs/blob/main/architecture/ui.md) — the
-  normative design. _Currently describes the retired front end; `docs#92` rewrites it._
+  normative design, and the front end's design authority.
 - [`conventions.md`](https://github.com/astro-mine/docs/blob/main/architecture/conventions.md) —
   cross-cutting standards (§2.1 the front-end baseline, §7.1 the four distributions, §13 naming).
 

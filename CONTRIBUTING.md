@@ -24,15 +24,36 @@ Before pushing, run what CI runs — the whole chain works **offline after the f
 ```bash
 pnpm check:layering       # the enforced dependency direction
 pnpm check:layering:test  # ...and proof that check can fail
+pnpm check:contrast       # WCAG 2.1 AA over the theme's colour pairs, in both modes
 pnpm format:check         # prettier
 pnpm typecheck            # tsc, every package and the app
 pnpm lint                 # eslint, 0 warnings
+pnpm test                 # vitest, every package that has a test script
 pnpm build                # the packages, then the static export into apps/console/out
 ```
 
-The full eight-lane matrix — unit/component on Vitest + MSW, the OpenAPI contract lane, the honesty
-assertions, Playwright against the built export, and axe over every route in both modes — arrives
-with `ui#8`. What is above is the floor, and the floor must never be red.
+The full eight-lane matrix — the shared MSW harness, the coverage floor, the bundle budget,
+Playwright against the built export, and axe over every _route_ in both modes — arrives with `ui#8`.
+What is above is the floor, and the floor must never be red.
+
+### Three properties are checked on the emitted bytes, not on an exit code
+
+`pnpm build` succeeding proves less than it looks. CI additionally asserts, against
+`apps/console/out/index.html`, that the static export exists at all; that it carries inlined Emotion
+styles, so the first paint arrives styled instead of flashing; and that the colour-scheme init script
+and the theme's CSS key off the **same** attribute. That last one has no other symptom anywhere —
+MUI's `colorSchemeSelector: "data"` shorthand generates `[data-dark]` while `InitColorSchemeScript`
+writes `data-mui-color-scheme="dark"`, and the types agree, the build succeeds, every `jsdom` test
+passes, and dark mode is dead in a browser.
+
+### Colour lives in the theme, and nowhere else
+
+`packages/ui/src/theme.ts` is the only file that may contain a colour value; ESLint rejects hex,
+`rgb()`, `hsl()` and friends everywhere else under `apps/` and `packages/`. This is not tidiness — a
+colour written into a component is a colour `pnpm check:contrast` cannot see, and the gate is
+measuring the wrong thing the moment a page paints something itself. Declare the role in the theme
+with its contrast pairing, then reach for it (`sx={{ color: "text.secondary" }}`) or use
+`currentColor`.
 
 ## Where code goes
 

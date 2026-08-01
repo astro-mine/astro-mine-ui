@@ -9,11 +9,11 @@ The **normative design lives in the docs repository**, at
 records the **repo-local** structure and the decisions taken standing the repository up (`ui#1`); it
 summarizes the design rather than restating it.
 
-> **Read `architecture/ui.md` with today's date in mind.** It currently describes the _retired_
-> front end — a Vite single-page shell composing `Surface` plugin packages, three derived themes,
-> visx and `react-router`. All of that is gone. `docs#92` rewrites it for what is actually built
-> here; until that lands, the plan of record is
-> [the UI rebuild plan](https://github.com/astro-mine/docs/blob/main/tpm/ui-rebuild-plan.md).
+`docs#92` rewrote `architecture/ui.md` for what is actually built here and retired the separate
+console design document — there is no "console" distinct from the application, because the shell
+_is_ the app. Its §11 records what went and why. The execution plan is
+[the UI rebuild plan](https://github.com/astro-mine/docs/blob/main/tpm/ui-rebuild-plan.md), which is
+point-in-time and read as history.
 
 ## The layering is the product
 
@@ -89,9 +89,18 @@ The workspace root is `private: true` and **publishes nothing**; only the packag
 the `@astro-mine` scope (`conventions.md` §13). `apps/console` carries the scope too and is
 `private: true` with it — it is deployed as a built application, never consumed as a package.
 
-The four packages are **skeletons today**, deliberately: each one builds and typechecks empty so the
-workspace, the build graph and the layering gate are real before any of them is under pressure. Each
-`src/index.ts` names the issue that fills it.
+`packages/api-client` and `packages/ui` are filled (`ui#2`, `ui#3`); `view` and `inspectors` are
+still skeletons that build and typecheck empty, so the workspace, the build graph and the layering
+gate stay real before either is under pressure. Each remaining `src/index.ts` names the issue that
+fills it.
+
+### Colour lives in the theme
+
+`packages/ui/src/theme.ts` holds the one theme — light and dark, carried by MUI's `colorSchemes` —
+and it is **the only file in the workspace that may contain a colour value**. ESLint rejects colour
+literals everywhere else, because a colour written into a component is a colour the contrast gate
+cannot see, and `pnpm check:contrast` measures every pairing the theme declares in both schemes. The
+gate carries its own proof that it can reject, against a deliberately-bad pair.
 
 ## The rules that outlive any one page
 
@@ -128,6 +137,7 @@ enforced only by review is a rule that erodes — which is why it is a test. It 
 | --------------- | -------------------------------------------------------------------------------------------------------- |
 | Framework       | **Next.js 16** (app router), **static export**                                                           |
 | Language / UI   | **TypeScript 5.9** · **React 19** · **Material UI 9**                                                    |
+| Theme           | One theme, **light and dark only** via MUI `colorSchemes`; colour lives in `packages/ui/src/theme.ts`    |
 | Charts          | **MUI X Charts**, behind the honesty wrappers above (`ui#4`)                                             |
 | 3D / replay     | `@astro-mine/view` (Cesium, MCAP), client-only (`ui#6`)                                                  |
 | API access      | a generated client from the API's OpenAPI document (`ui#2`)                                              |
@@ -135,12 +145,11 @@ enforced only by review is a rule that erodes — which is why it is a test. It 
 | Package manager | **pnpm 11.10.0**, pinned in the workspace root                                                           |
 | Tests           | **Vitest** + Testing Library + MSW · **Playwright** against the built export · **axe** (`ui#8`)          |
 
-> **These pins are ahead of the docs.** `conventions.md` §2.1 and `architecture/ui.md` still specify
-> Next 15, MUI 7 and React 18.3 with Vite and visx. Next 15 and MUI 7 were already two majors behind
-> the registry when this repository was created, and a repository born two majors behind starts life
-> owing an upgrade. TypeScript is held at 5.9 rather than 6 or 7 because `typescript-eslint` peers
-> `<6.1.0`. `docs#92` records these numbers normatively; this table is the interim source of truth,
-> and where the two disagree, **the docs are the ones to correct**.
+> **`conventions.md` §2.1 is the normative source for these pins**, and it now names exactly the
+> numbers above — `docs#92` read them off this repository after it was stood up two majors ahead of
+> what the docs then specified. This table is a convenience copy; where the two disagree, the
+> convention wins. TypeScript is held below 6.1 because `typescript-eslint` 8 peers `<6.1.0` — a
+> live constraint, not a stale pin.
 
 ## What this distribution must not do
 
