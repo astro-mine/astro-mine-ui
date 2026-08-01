@@ -91,6 +91,12 @@ jobs:
       - name: Lint (eslint, 0 warnings)
         run: pnpm lint
 
+      # Unit tests, from source — they need no build, so they run before it and fail faster. Today
+      # this is the api-client's 59; `pnpm -r` picks up each package as it gains a `test` script.
+      # ui#8 widens this lane into the component/coverage/a11y/e2e set the plan describes.
+      - name: Unit tests (vitest)
+        run: pnpm test
+
       - name: Build (packages, then the static export)
         run: pnpm build
 
