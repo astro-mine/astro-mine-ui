@@ -46,6 +46,52 @@ const config = [
     },
   },
 
+  // NO COLOUR OUTSIDE THE THEME (ui#3; ui.md §2, conventions.md §11).
+  //
+  // A hex value written into a component is a colour no contrast check can see. `packages/ui`'s
+  // gate measures the pairings the theme declares, in both schemes — and it is measuring the wrong
+  // thing the moment a page paints something itself. This is the acceptance criterion "no hard-coded
+  // colour value exists outside the theme, asserted by lint".
+  //
+  // The rule is on the *literal*, not on a property name, because the failure mode is not `color:
+  // "#f00"` specifically — it is a colour arriving anywhere: a `sx` value, an SVG `stroke`, a
+  // template string, a constant at the top of a file. Components reach for colour through the theme
+  // instead (`sx={{ color: "text.secondary" }}`, `theme.palette.standIn.main`, or
+  // `currentColor` in an SVG).
+  {
+    files: ["apps/**/*.{ts,tsx}", "packages/**/*.{ts,tsx}"],
+    ignores: [
+      // The one file colour is allowed to exist in, and the gate that measures it.
+      "packages/ui/src/theme.ts",
+      "packages/ui/src/contrast.ts",
+      // The gate's own proofs, which need deliberately-bad colours to reject.
+      "packages/ui/tests/contrast*.test.ts",
+      // Generated from the OpenAPI document; not hand-written, and not ours to lint.
+      "packages/api-client/src/generated/**",
+    ],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector:
+            "Literal[value=/^\\s*(#[0-9a-fA-F]{3,8}|(rgb|hsl|hwb|lab|lch|oklab|oklch|color)a?\\s*\\()/]",
+          message:
+            "No colour literal outside the theme. Declare the role in packages/ui/src/theme.ts — " +
+            "with its contrast pairing — and reach for it through the theme (sx={{ color: " +
+            "'text.secondary' }}) or use currentColor. A colour written here is a colour the " +
+            "contrast gate cannot see.",
+        },
+        {
+          selector:
+            "TemplateElement[value.raw=/(^|[\\s(:,])(#[0-9a-fA-F]{3,8}\\b|(rgb|hsl|hwb|lab|lch|oklab|oklch|color)a?\\s*\\()/]",
+          message:
+            "No colour literal outside the theme, including inside a template string. See " +
+            "packages/ui/src/theme.ts.",
+        },
+      ],
+    },
+  },
+
   prettier,
 ];
 

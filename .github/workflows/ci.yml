@@ -82,6 +82,17 @@ jobs:
           CORE_REPO_TOKEN: ${{ secrets.CORE_REPO_TOKEN }}
         run: pnpm check:api-drift
 
+      # THE CONTRAST LANE (ui#3). Every colour pairing the theme declares, measured against WCAG 2.1
+      # in BOTH schemes — and, in the same file's companion, proof that the check rejects a
+      # deliberately-bad pair. It runs as its own step rather than only inside `pnpm test` so a
+      # failure reads as what it is: a contrast regression, not "a test broke".
+      #
+      # "Where a package ships design tokens, the properties asserted about them are checked, not
+      # claimed" (conventions.md §11). An accessibility claim nobody runs is one that quietly stops
+      # being true.
+      - name: Contrast (WCAG 2.1 AA, light and dark)
+        run: pnpm check:contrast
+
       - name: Format check (prettier)
         run: pnpm format:check
 
@@ -117,3 +128,20 @@ jobs:
           grep -q 'data-emotion=' apps/console/out/index.html \
             || { echo "::error::apps/console/out/index.html carries no Emotion styles — the MUI cache provider is not wired, and the export will flash unstyled on first paint"; exit 1; }
           echo "Emotion styles are inlined in the prerendered HTML."
+
+      # The third property that is invisible to a type-check, a passing build and a green jsdom
+      # suite: the pre-paint script and the theme's CSS must key off the SAME attribute (ui#3).
+      #
+      # They are set in different files — `InitColorSchemeScript` in the app's root layout, the
+      # selector in `packages/ui/src/theme.ts` — and neither can see the other. MUI's `"data"`
+      # shorthand generates `[data-dark]` while the script writes `data-mui-color-scheme="dark"`;
+      # everything still compiles, builds and tests green, and dark mode is dead in a browser. The
+      # only place the disagreement is observable is the emitted bytes, so that is where it is
+      # checked. jsdom cannot stand in for this: it does not populate the inline script's body.
+      - name: The colour scheme applies before first paint (script and CSS agree)
+        run: |
+          grep -q 'data-mui-color-scheme' apps/console/out/index.html \
+            || { echo "::error::apps/console/out/index.html carries no colour-scheme init script — the export will paint light for everyone and flip on hydrate"; exit 1; }
+          grep -q '\[data-mui-color-scheme="dark"\]' apps/console/out/index.html \
+            || { echo "::error::the dark colour scheme's CSS is not keyed to data-mui-color-scheme — theme.ts's colorSchemeSelector and InitColorSchemeScript's attribute disagree, and dark mode will never apply"; exit 1; }
+          echo "The init script and the dark scheme's CSS agree on data-mui-color-scheme."
