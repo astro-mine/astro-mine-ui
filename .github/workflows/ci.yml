@@ -27,7 +27,9 @@ jobs:
       - name: Install pnpm
         uses: pnpm/action-setup@v4
 
-      - name: Set up Node 20
+      # The version comes from .nvmrc, and the floor is pnpm's, not ours: pnpm 11.10.0 declares
+      # engines.node >= 22.13 and crashes on Node 20 with "No such built-in module: node:sqlite".
+      - name: Set up Node
         uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc

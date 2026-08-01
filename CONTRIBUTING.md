@@ -5,7 +5,7 @@ Org-wide policy — governance, the code of conduct, security reporting and expo
 
 ## Prerequisites
 
-- **Node ≥ 20.19** (see `.nvmrc`).
+- **Node ≥ 22.13** (see `.nvmrc`) — the floor is pnpm's, not ours; pnpm 11.10.0 crashes on Node 20.
 - **pnpm 11.10.0** — pinned in `package.json` (`packageManager`); `corepack enable` picks it up.
 
 No registry credential is needed to build this repository: every `@astro-mine` dependency here is a
@@ -68,6 +68,14 @@ Two things that will bite, both consequences of the static export and both expla
   are the local truth, and CI is the arbiter.
 - **`jsdom` does not implement every `File` method**, so a page reading an uploaded file must use an
   API `jsdom` has (`FileReader`, not `File.text()`).
+
+### `next-env.d.ts` is generated and untracked
+
+Do not commit `apps/console/next-env.d.ts`, and do not restore it citing the Next.js convention to
+track it. That convention predates the typed-routes reference, which makes the file's contents differ
+between commands — `next dev` and `next build` each write a different path into it — so there is no
+single correct committed state, and tracking it left `git status` permanently dirty and aborted
+`git checkout` after `pnpm dev`. Both commands regenerate it, and `pnpm typecheck` passes without it.
 
 ### Why `react` is a root devDependency
 
