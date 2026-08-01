@@ -27,7 +27,8 @@
     "check:api-drift": "node scripts/check-api-drift.mjs",
     "check:api-drift:local": "node scripts/check-api-drift.mjs --local",
     "check:api-types": "node scripts/check-no-handwritten-api-types.mjs",
-    "check:api-types:test": "node --test scripts/check-no-handwritten-api-types.test.mjs"
+    "check:api-types:test": "node --test scripts/check-no-handwritten-api-types.test.mjs",
+    "check:contrast": "pnpm --filter @astro-mine/ui test:contrast"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.0",
