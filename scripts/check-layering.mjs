@@ -69,19 +69,38 @@ const APP = "@astro-mine/console";
 const LAYERED = new Set([...Object.keys(ALLOWED_PACKAGE_IMPORTS), APP]);
 
 /**
- * Third-party packages that belong to exactly one workspace member (rule 4).
+ * Third-party packages that belong to specific workspace members (rule 4).
  *
- * `@mui/x-charts` is `@astro-mine/ui`'s, because the design system "owns every chart the application
- * renders and exports no raw chart primitive" (ui.md §7.1). That rule used to be a *property*: the
- * previous chart library could not express a second y-axis or a zero-length bar for an unmeasured
- * bound. MUI X can express both, so what stops a page drawing a chart with no uncertainty discipline
- * is no longer the library's API — it is this table plus the design system's own tests.
- *
- * A page that needs a chart the design system does not have needs it *in* the design system, with
- * the open-mark and single-axis rules applied, and then imports it from there.
+ * Each entry names who may reach for it and **why**, because the reason differs per package and a
+ * shared message would be wrong for all but the first. `ui#6` is what forced that: the table held
+ * one entry and the rejection text was chart prose, which would have told someone importing Cesium
+ * about uncertainty bounds.
  */
 const RESTRICTED_PACKAGES = {
-  "@mui/x-charts": "@astro-mine/ui",
+  "@mui/x-charts": {
+    owners: ["@astro-mine/ui"],
+    why:
+      "@astro-mine/ui owns every chart the application renders and exposes no raw chart primitive " +
+      "(ui.md §7.1). That rule used to be a *property*: the previous chart library could not " +
+      "express a second y-axis or a zero-length bar for an unmeasured bound. MUI X can express " +
+      "both, so what stops a page drawing a chart with no uncertainty discipline is no longer the " +
+      "library's API — it is this table plus the design system's own tests. If the chart you need " +
+      "is not there, add it there, with its tests, and import it from there.",
+  },
+  cesium: {
+    // The application is named too, and that is not a loophole: it is the composition root, and
+    // `apps/console/src/components/Globe.tsx` is the one place the dynamic, SSR-disabled import and
+    // the `CESIUM_BASE_URL` assignment live. It also declares `cesium` so the asset-staging script
+    // can resolve it the way the deployment will.
+    owners: ["@astro-mine/view", APP],
+    why:
+      "@astro-mine/view owns the globe. Cesium touches `window` at *import* time and pulls " +
+      "megabytes of workers and web assembly behind it, so an import from anywhere else is either " +
+      "a prerender failure during `next build` or a bundle blowout on a route that never draws a " +
+      "globe — and neither reads as an import problem when it happens. View owns the client-only " +
+      "mounting, the asset staging and the single Viewer lifecycle; a second importer inherits " +
+      "none of it. Render a globe through @astro-mine/view, mounted the way Globe.tsx mounts it.",
+  },
 };
 
 function readJson(path) {
@@ -177,17 +196,11 @@ export function importedAstroMinePackages(source) {
  *          reason it is not.
  */
 function restrictionViolation(importer, imported) {
-  const owner = RESTRICTED_PACKAGES[imported];
-  if (owner === undefined || owner === importer) return null;
+  const restriction = RESTRICTED_PACKAGES[imported];
+  if (restriction === undefined || restriction.owners.includes(importer)) return null;
 
-  return (
-    `${imported} belongs to ${owner}, and nothing else in this workspace may reach for it. ` +
-    `${owner} owns every chart the application renders and exposes no raw chart primitive ` +
-    `(ui.md §7.1): a null uncertainty bound renders as an open mark and a second y-axis is not ` +
-    `expressible, and both hold because ${owner}'s wrappers and their tests make them hold. A ` +
-    `chart drawn past ${owner} has neither property. If the chart you need is not there, add it ` +
-    `there — with its tests — and import it from ${owner}.`
-  );
+  const owners = restriction.owners.join(" and ");
+  return `${imported} belongs to ${owners}, and nothing else here may reach for it. ${restriction.why}`;
 }
 
 /**

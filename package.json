@@ -28,6 +28,9 @@
     "check:api-drift:local": "node scripts/check-api-drift.mjs --local",
     "check:api-types": "node scripts/check-no-handwritten-api-types.mjs",
     "check:api-types:test": "node --test scripts/check-no-handwritten-api-types.test.mjs",
+    "check:core-schema": "node scripts/check-core-schema.mjs",
+    "codegen:units": "node scripts/codegen-units.mjs",
+    "cesium:assets": "pnpm --filter @astro-mine/console run cesium:assets",
     "check:contrast": "pnpm --filter @astro-mine/ui test:contrast",
     "check:palette": "pnpm --filter @astro-mine/ui test:palette"
   },
@@ -39,6 +42,7 @@
     "eslint": "^9.39.5",
     "eslint-config-next": "^16.2.12",
     "eslint-config-prettier": "^10.1.8",
+    "json-schema-to-typescript": "15.0.4",
     "openapi-typescript": "^7.13.0",
     "prettier": "^3.9.6",
     "react": "^19.2.8",

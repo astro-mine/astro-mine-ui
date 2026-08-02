@@ -32,7 +32,25 @@ import { dirname, extname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 /** Where the client's generated output lives — the one place API shapes may be declared. */
-const GENERATED = "packages/api-client/src/generated";
+/**
+ * The trees whose contents are written by a generator and guarded against their upstream.
+ *
+ * The rule this gate enforces is *"no shape restated by hand under a schema's name"* — and the test
+ * for "by hand" is not the file's name, it is whether a generator wrote it and something fails when
+ * its source moves. Both of these qualify, and each is listed with the pair that makes it qualify:
+ *
+ *   packages/api-client/src/generated  ← `codegen-api-client.mjs`, guarded by `check-api-drift.mjs`
+ *   packages/view/src/frames/generated ← `codegen-units.mjs`,      guarded by `check-core-schema.mjs`
+ *
+ * The second arrived with `ui#6` and is the reason this stopped being one constant. View generates
+ * `PlanetaryCRS` from **Core's** units schema, which is also the name of an API component schema —
+ * the API publishes that shape because Core defines it, so the two are the same shape reached by two
+ * routes, not a copy of one made from the other. And the remedy this gate normally offers is
+ * unavailable here by design: `packages/view` may not import `@astro-mine/api-client`, because a
+ * package may not import a sibling (ui.md §3). Exempting the tree is the honest answer; exempting
+ * the *name* would have hidden a real hand-copy the day someone made one.
+ */
+const GENERATED_TREES = ["packages/api-client/src/generated", "packages/view/src/frames/generated"];
 
 /**
  * The client owns the transport. Nothing else may open a request.
@@ -145,7 +163,8 @@ export function checkNoHandwrittenApiTypes(root) {
       });
     }
 
-    if (!isInside(file, GENERATED) && schemaNames.size > 0) {
+    const isGenerated = GENERATED_TREES.some((tree) => isInside(file, tree));
+    if (!isGenerated && schemaNames.size > 0) {
       for (const match of source.matchAll(DECLARATION)) {
         const [matched, kind, name] = match;
         if (!schemaNames.has(name)) continue;

@@ -23,3 +23,13 @@ pnpm-lock.yaml
 # generator itself, so `pnpm format:check` stays green without an exemption that would also hide a
 # hand edit.
 packages/api-client/openapi/openapi.json
+
+# Core's units schema and its conformance vectors, vendored byte-for-byte from astro-mine-platform
+# (ui#6). Exactly the reasoning above for the OpenAPI document, and discovered the same way: the
+# first `pnpm format` after the port reformatted `conformance.json`, and the drift gate immediately
+# reported bytes that no longer matched the platform's. A formatter and a byte-equality guard cannot
+# both own a file.
+#
+# The TypeScript generated FROM these — src/frames/generated/units.ts — is formatted, by the
+# generator itself, using this repository's own Prettier config.
+packages/view/src/frames/schema/*.json

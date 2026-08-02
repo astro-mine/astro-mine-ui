@@ -299,7 +299,7 @@ test("rule 4 — the application may not (manifest)", () => {
       assert.equal(violations.length, 1);
       assert.match(violations[0], /@mui\/x-charts belongs to @astro-mine\/ui/);
       // The message must say where the chart goes instead, not just that this is forbidden.
-      assert.match(violations[0], /add it there — with its tests/);
+      assert.match(violations[0], /add it there, with its tests/);
     },
   );
 });
@@ -337,6 +337,50 @@ test("rule 4 — a type-only import is still a reach for the chart library", () 
       const { violations } = checkLayering(root);
       assert.equal(violations.length, 1);
       assert.match(violations[0], /@mui\/x-charts belongs to @astro-mine\/ui/);
+    },
+  );
+});
+
+// Cesium is the second restricted package, and the first with more than one permitted holder
+// (ui#6). Both halves of that need proving: that it is restricted at all, and that the exemption is
+// exactly as wide as it claims to be.
+
+test("rule 4 — a package other than view may not reach for cesium", () => {
+  withFixture(
+    {
+      ...CLEAN,
+      ui: {
+        pkg: { name: "@astro-mine/ui" },
+        sources: { "index.ts": 'import { Viewer } from "cesium";\nexport {};\n' },
+      },
+    },
+    (root) => {
+      const { violations } = checkLayering(root);
+      assert.equal(violations.length, 1);
+      assert.match(violations[0], /cesium belongs to @astro-mine\/view and @astro-mine\/console/);
+      // The message must be Cesium's own, not the chart library's — one shared reason for two
+      // packages would explain the wrong failure to whoever hits it.
+      assert.match(violations[0], /prerender failure|bundle blowout/);
+    },
+  );
+});
+
+test("rule 4 — the application may hold cesium, because it mounts the globe", () => {
+  // The composition root declares it so the asset-staging script resolves it the way a deployment
+  // will, and `components/Globe.tsx` is where the SSR-disabled dynamic import lives. If this ever
+  // starts failing, the exemption was removed and the build cannot stage Cesium's assets.
+  withFixture(
+    {
+      ...CLEAN,
+      console: {
+        slot: "apps",
+        pkg: { name: "@astro-mine/console", dependencies: { cesium: "^1.123.0" } },
+        sources: { "page.ts": "export {};\n" },
+      },
+    },
+    (root) => {
+      const { violations } = checkLayering(root);
+      assert.deepEqual(violations, []);
     },
   );
 });

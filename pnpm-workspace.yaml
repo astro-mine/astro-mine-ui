@@ -43,9 +43,14 @@ overrides:
   #
   # Exposure here was low and is recorded so the next reader need not re-derive it: all three need
   # attacker-controlled CSS, this workspace has no .css file, no postcss config and no CSS import,
-  # MUI styles through Emotion at runtime, and postcss appears in none of the static export. That
-  # will stop being true when Cesium's stylesheet arrives with ui#6 — vendored, not hostile, but no
-  # longer "no CSS at all".
+  # MUI styles through Emotion at runtime, and postcss appears in none of the static export.
+  #
+  # That was expected to stop being true at ui#6, when Cesium arrived. **It did not, and the reason
+  # is worth keeping.** Cesium ships `widgets.css`, but `@astro-mine/view` deliberately never imports
+  # it — `GlobeScene` sizes its canvas inline instead, "which a library must not inject globally" —
+  # and the stylesheet reaches the browser as a *staged runtime asset* under `public/cesium`, served
+  # as bytes and never passed through the build. So the assessment stands unchanged: still no CSS in
+  # this build, and still nothing for postcss to parse.
   #
   # 8.5 is a semver-minor from 8.4, so this is not a leap. REMOVE THIS when next bumps its own pin
   # to a patched postcss; check with `npm view next dependencies.postcss`.

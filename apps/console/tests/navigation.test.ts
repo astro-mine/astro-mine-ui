@@ -26,6 +26,19 @@ import {
 
 const APP_DIR = fileURLToPath(new URL("../src/app", import.meta.url));
 
+/**
+ * Routes that are deliberately not in the navigation.
+ *
+ * **One entry, with a reason and an expiry — not a hole in the check.** `ui#6` needs a globe mounted
+ * somewhere to prove Cesium renders in the built export, and no real page mounts one until `ui#17`.
+ * A scaffold is the honest way to get there, and an unlisted scaffold is better than a nav entry
+ * pointing at a development page.
+ *
+ * **Delete this list, and the route, when `ui#17` lands.** A named exception that nobody removes
+ * becomes the precedent for the next one.
+ */
+const UNLISTED_ROUTES: readonly string[] = ["/dev/globe"];
+
 /** Every route the filesystem actually serves, derived from where the `page.tsx` files are. */
 function routesOnDisk(dir = APP_DIR, prefix = ""): string[] {
   const routes: string[] = [];
@@ -139,7 +152,26 @@ describe("the table and the filesystem agree", () => {
   it("has a navigation entry for every page on disk", () => {
     const hrefs = new Set(NAV_ENTRIES.map((entry) => entry.href));
     for (const route of routesOnDisk()) {
+      if (UNLISTED_ROUTES.includes(route)) continue;
       expect(hrefs, `${route} has no navigation entry`).toContain(route);
+    }
+  });
+
+  it("keeps the unlisted list to routes that actually exist", () => {
+    // The exception must not outlive the route it excuses. If `/dev/globe` is deleted and this
+    // entry is not, the next unlisted page inherits a licence nobody granted it.
+    const routes = new Set(routesOnDisk());
+    for (const route of UNLISTED_ROUTES) {
+      expect(routes, `${route} is excused from the navigation but does not exist`).toContain(route);
+    }
+  });
+
+  it("keeps every unlisted route out of the navigation", () => {
+    // The other direction: an unlisted route that gains a nav entry is no longer an exception, and
+    // the exception should go rather than sit there agreeing with the rule.
+    const hrefs = new Set(NAV_ENTRIES.map((entry) => entry.href));
+    for (const route of UNLISTED_ROUTES) {
+      expect(hrefs, `${route} is in the navigation, so it needs no exception`).not.toContain(route);
     }
   });
 });
