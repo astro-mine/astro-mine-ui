@@ -32,11 +32,41 @@ describe("a configured deployment", () => {
     });
   });
 
-  it("reads config.json from beside the application, so a base path still resolves", async () => {
+  it("reads config.json from the deployment root, not from beside the current page", async () => {
+    // THE REGRESSION THIS REPLACES. The path was `config.json` — relative — on the reasoning that a
+    // relative URL survives a base path. It resolves against the *current document*, so it only
+    // ever pointed at the deployment root from the deployment root. `ui#5` turned one page into
+    // twenty and the browser started asking for `/registry/config.json`,
+    // `/registry/artifact/config.json` and so on: a correctly configured deployment reporting "no
+    // API is configured" on every route but the home page.
+    //
+    // A test asserted the old behaviour, and asserted it *by its intent* — "so a base path still
+    // resolves" — which is how a wrong decision survives review: the assertion agreed with the
+    // comment, and both were about a case nobody had a second page to check.
     const doFetch = answering(jsonResponse({ apiBaseUrl: "https://api.example.org" }));
     await loadRuntimeConfig({ fetch: doFetch });
     expect(doFetch.mock.calls[0][0]).toBe(RUNTIME_CONFIG_PATH);
-    expect(RUNTIME_CONFIG_PATH.startsWith("/")).toBe(false);
+    expect(RUNTIME_CONFIG_PATH.startsWith("/")).toBe(true);
+  });
+
+  it("resolves to the same file from any depth of route", async () => {
+    // The property stated as the thing that actually matters, rather than as a fact about the
+    // string: wherever the reader is, the application asks for one file.
+    const doFetch = answering(jsonResponse({ apiBaseUrl: "https://api.example.org" }));
+    for (const page of ["/", "/registry/", "/registry/artifact/", "/bench/leaderboard/"]) {
+      const resolved = new URL(RUNTIME_CONFIG_PATH, `https://console.example.org${page}`);
+      expect(resolved.pathname, `from ${page}`).toBe("/config.json");
+    }
+    await loadRuntimeConfig({ fetch: doFetch });
+    expect(doFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("lets a deployment under a base path say so", async () => {
+    // The case the relative path was reaching for, served properly: only the application knows its
+    // own prefix, so the application passes it.
+    const doFetch = answering(jsonResponse({ apiBaseUrl: "https://api.example.org" }));
+    await loadRuntimeConfig({ fetch: doFetch, url: "/console/config.json" });
+    expect(doFetch.mock.calls[0][0]).toBe("/console/config.json");
   });
 });
 

@@ -21,7 +21,6 @@ import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import ListItemButton from "@mui/material/ListItemButton";
 import ListItemText from "@mui/material/ListItemText";
-import Typography from "@mui/material/Typography";
 import NextLink from "next/link";
 import { useId, useState } from "react";
 
@@ -92,9 +91,13 @@ export function Sidebar({ activeHref, onNavigate }: SidebarProps) {
                         // The one signal that survives a reader who cannot see the highlight.
                         // `selected` alone is a background colour and nothing more.
                         aria-current={active ? "page" : undefined}
-                        // The correct ARIA home for a shortcut: announced with the control, and not
-                        // glued into its label, which would make the accessible name read
-                        // "Leaderboard g l".
+                        // The chord is **not** printed beside the label. It is still bound, and
+                        // this is still where it is declared — `aria-keyshortcuts` is the correct
+                        // ARIA home for one, announced with the control rather than glued into its
+                        // label, where it would make the accessible name read "Leaderboard g l".
+                        // What went is the visible hint: eighteen entries with a monospace tail on
+                        // six of them is a rail that reads as a cheat sheet before it reads as
+                        // navigation.
                         aria-keyshortcuts={entry.chord?.join(" ")}
                         sx={{ pl: 3, pr: 2, py: 0.75 }}
                       >
@@ -102,17 +105,6 @@ export function Sidebar({ activeHref, onNavigate }: SidebarProps) {
                           primary={entry.label}
                           slotProps={{ primary: { variant: "body2" } }}
                         />
-                        {entry.chord === undefined ? null : (
-                          <Typography
-                            component="span"
-                            variant="caption"
-                            color="text.secondary"
-                            aria-hidden="true"
-                            sx={{ fontFamily: "monospace", ml: 1, opacity: 0.7 }}
-                          >
-                            {entry.chord.join(" ")}
-                          </Typography>
-                        )}
                       </ListItemButton>
                     </ListItem>
                   );
