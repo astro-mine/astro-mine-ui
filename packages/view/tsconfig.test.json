@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  // The tests, type-checked but never emitted — the same split `packages/ui` and
+  // `packages/api-client` use. Here it is load-bearing for a second reason: the tests sit *beside*
+  // their subjects rather than in a `tests/` directory, so `tsconfig.json` has to exclude them by
+  // pattern or they would land in `dist/` and in the published package.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "resolveJsonModule": true,
+    "types": ["vitest/globals", "@testing-library/jest-dom"]
+  },
+  "include": ["src", "vitest.config.ts"]
+}

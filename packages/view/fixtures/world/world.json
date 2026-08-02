@@ -1,0 +1,28 @@
+{
+  "crs": {
+    "body": "MOON",
+    "body_fixed_frame": "MOON_ME",
+    "datum": null,
+    "projection": "+proj=stere +lat_0=-90 +lat_ts=-90 +lon_0=0 +x_0=0 +y_0=0 +R=1737400.0 +units=m +no_defs",
+    "reference_radius_m": 1737400.0
+  },
+  "grid": {
+    "height": 256,
+    "resolution_m": 20.0,
+    "transform": [20.0, 0.0, -2550.0, 0.0, -20.0, 32550.0],
+    "width": 256
+  },
+  "schema": "astro-mine.worlds.bundle/1",
+  "tiles": "tiles/tileset.json",
+  "tiles_anchor": {
+    "frame": "MOON_ME",
+    "origin": {
+      "height_m": -184.77907002188448,
+      "latitude_deg": -89.00969823683332,
+      "longitude_deg": -0.05723852193070982
+    }
+  },
+  "version": "0.1.0",
+  "world_hash": "548eae89eb703d2090b3587a5c419437d92a979cf02ee8645197abcaf25a43cf",
+  "world_id": "shackleton-de-gerlache-fixture"
+}

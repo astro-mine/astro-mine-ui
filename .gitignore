@@ -29,3 +29,9 @@ apps/console/public/config.json
 # Editor / OS
 .DS_Store
 *.log
+
+# Cesium's runtime assets, staged into the app by `scripts/copy-cesium-assets.mjs` before every
+# build and every dev run (ui#6). Roughly 7.5 MB of workers, web assembly and widget files that
+# Cesium fetches from `CESIUM_BASE_URL` rather than through the bundler — generated output, and
+# generated output does not belong in the tree.
+apps/console/public/cesium/

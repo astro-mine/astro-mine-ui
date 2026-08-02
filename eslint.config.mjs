@@ -25,6 +25,10 @@ const config = [
       "**/coverage/**",
       "**/*.tsbuildinfo",
       "**/next-env.d.ts",
+      // Cesium's runtime assets, staged into the app before every build (ui#6). Megabytes of
+      // third-party workers and minified bundles that are *copied*, never compiled — linting them
+      // reported 3,300 problems in code this repository does not own and cannot change.
+      "apps/console/public/cesium/**",
     ],
   },
 
@@ -64,6 +68,14 @@ const config = [
       // The one file colour is allowed to exist in, and the gates that measure it.
       "packages/ui/src/theme.ts",
       "packages/ui/src/contrast.ts",
+      // The same arrangement, one package over (ui#6). `@astro-mine/view` cannot reach the theme —
+      // a package may not import a sibling — and its overlays sit on a rendered planet rather than
+      // on any surface the theme describes, so it owns its colours. What the rule actually wants is
+      // that they live in one auditable place per package, which is what this is; and
+      // `palette.test.ts` measures every pairing against WCAG AA, so they are audited rather than
+      // merely collected.
+      "packages/view/src/palette.ts",
+      "packages/view/src/palette.test.ts",
       // The gates' own proofs, which need deliberately-bad colours to reject: a contrast pair that
       // fails WCAG, and a categorical pair that a deuteranope cannot separate (ui#4).
       "packages/ui/tests/contrast*.test.ts",

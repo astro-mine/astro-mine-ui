@@ -4,6 +4,7 @@
   "description": "The visualization library — the Cesium globe, world terrain from published bundles, asset models, swarm and replay layers, the MCAP replay source, the timeline clock, and the frames layer. Client-only.",
   "license": "Apache-2.0",
   "type": "module",
+  "sideEffects": false,
   "repository": {
     "type": "git",
     "url": "git+https://github.com/astro-mine/astro-mine-ui.git",
@@ -26,10 +27,24 @@
   ],
   "scripts": {
     "build": "tsc -b",
-    "typecheck": "tsc -b"
+    "typecheck": "tsc -b && tsc -p tsconfig.test.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@mcap/core": "^2.2.1",
+    "fzstd": "^0.1.1"
   },
   "peerDependencies": {
+    "cesium": ">=1.120",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^7.0.0",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
+    "cesium": "^1.123.0",
+    "jsdom": "^30.0.1",
+    "vitest": "^4.1.10"
   }
 }

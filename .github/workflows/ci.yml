@@ -82,6 +82,19 @@ jobs:
           CORE_REPO_TOKEN: ${{ secrets.CORE_REPO_TOKEN }}
         run: pnpm check:api-drift
 
+      # THE VENDORED-SCHEMA LANE (ui#6). `@astro-mine/view` is TypeScript and cannot import
+      # `astro_mine.core`, so it vendors Core's units schema and conformance vectors and generates
+      # `frames/generated/units.ts` from them. Vendored bytes with no guard are drift with extra
+      # steps — the copy was three Core tags stale when the guard was first written.
+      #
+      # Reads astro-mine-platform with CORE_REPO_TOKEN, the same credential the contract lane uses
+      # for astro-mine-api. Like that lane, it FAILS rather than skips when the token is absent: a
+      # compatibility check that goes quiet when its credential lapses has stopped existing.
+      - name: Vendored Core schemas are in step with the platform
+        env:
+          CORE_REPO_TOKEN: ${{ secrets.CORE_REPO_TOKEN }}
+        run: pnpm check:core-schema
+
       # THE CONTRAST LANE (ui#3). Every colour pairing the theme declares, measured against WCAG 2.1
       # in BOTH schemes — and, in the same file's companion, proof that the check rejects a
       # deliberately-bad pair. It runs as its own step rather than only inside `pnpm test` so a
@@ -179,3 +192,30 @@ jobs:
             exit 1
           fi
           echo "All $(find apps/console/out -name index.html | wc -l) routes prerender their own content."
+
+      # Cesium is client-only and code-split, asserted on the emitted bytes (ui#6).
+      #
+      # Two properties, both invisible everywhere else. The export must **serve Cesium's runtime
+      # assets itself** — Cesium fetches its workers and web assembly from CESIUM_BASE_URL rather
+      # than through the bundler, so a missing staging step is not a build error, it is a globe that
+      # silently fails to load in a deployment nobody can debug from here (CX-LOCAL).
+      #
+      # And the 4 MB Cesium chunk must be reachable **only at runtime**: `next/dynamic` with
+      # `ssr: false` is what keeps it out of every route's preload set, and a page that imported the
+      # globe statically would put it in the first paint of routes that never draw one. The build
+      # still succeeds either way, which is why this is checked here and not there.
+      - name: Cesium is served locally and loaded only on demand
+        run: |
+          for dir in Assets ThirdParty Widgets Workers; do
+            test -d "apps/console/out/cesium/$dir" \
+              || { echo "::error::apps/console/out/cesium/$dir is missing — Cesium's runtime assets were not staged into the export, and the globe will fail to load with no build error to show for it"; exit 1; }
+          done
+          chunks=apps/console/out/_next/static/chunks
+          biggest=$(ls -S "$chunks" | head -1)
+          grep -q 'CESIUM_BASE_URL' "$chunks/$biggest" \
+            || { echo "::error::the largest chunk is not Cesium's — this assertion has lost its subject and needs rewriting"; exit 1; }
+          if grep -rl "$biggest" apps/console/out --include='*.html' >/dev/null 2>&1; then
+            echo "::error::the Cesium chunk ($biggest) is preloaded by a prerendered route — something imports @astro-mine/view statically instead of through next/dynamic with ssr:false, and every route now pays 4 MB for a globe it does not draw"
+            exit 1
+          fi
+          echo "Cesium staged locally ($(du -sh apps/console/out/cesium | cut -f1)); its chunk is runtime-only."

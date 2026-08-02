@@ -1,0 +1,437 @@
+{
+  "asset": {
+    "actuators": [
+      {
+        "name": "drive_fl",
+        "power_draw_w": 25.0,
+        "target_joint": "wheel_fl",
+        "torque_nm": 40.0,
+        "velocity": 6.0
+      },
+      {
+        "force_n": 800.0,
+        "name": "drill_motor",
+        "power_draw_w": 90.0,
+        "target_joint": "drill_z"
+      }
+    ],
+    "bodies": [
+      {
+        "center_of_mass_m": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.35
+        },
+        "frame": "body",
+        "inertia_kg_m2": {
+          "ixx": 28.0,
+          "ixy": 0.0,
+          "ixz": 0.0,
+          "iyy": 34.0,
+          "iyz": 0.0,
+          "izz": 22.0
+        },
+        "mass_kg": 180.0,
+        "name": "chassis"
+      },
+      {
+        "center_of_mass_m": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        "frame": "wheel_front_left",
+        "inertia_kg_m2": {
+          "ixx": 0.12,
+          "ixy": 0.0,
+          "ixz": 0.0,
+          "iyy": 0.2,
+          "iyz": 0.0,
+          "izz": 0.12
+        },
+        "mass_kg": 9.0,
+        "name": "wheel_front_left"
+      },
+      {
+        "center_of_mass_m": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": -0.1
+        },
+        "frame": "drill",
+        "inertia_kg_m2": {
+          "ixx": 0.05,
+          "ixy": 0.0,
+          "ixz": 0.0,
+          "iyy": 0.05,
+          "iyz": 0.0,
+          "izz": 0.02
+        },
+        "mass_kg": 6.0,
+        "name": "drill_head"
+      }
+    ],
+    "capabilities": [
+      "mobility.wheeled",
+      "prospecting.neutron",
+      "prospecting.nir",
+      "prospecting.gpr",
+      "prospecting.drill_assay",
+      "excavation.drill",
+      "sensing.imaging",
+      "sensing.imu",
+      "sensing.odometry",
+      "comms.relay",
+      "power.generation",
+      "power.storage"
+    ],
+    "comms": [
+      {
+        "antenna": {
+          "boresight_frame": "sensor_mast",
+          "gain_dbi": 6.0,
+          "pointing_accuracy_deg": 5.0
+        },
+        "band": "uhf",
+        "eirp_dbw": 5.0,
+        "gt_db_per_k": -18.0,
+        "max_rate_bps": 2000000.0,
+        "min_rate_bps": 2000.0,
+        "modcod_supported": ["gmsk_r1_2", "gmsk_r3_4"],
+        "name": "uhf_relay",
+        "node_role": "space",
+        "protocols": ["ccsds_tc_tm"],
+        "relay": true,
+        "tx_power_w": 8.0
+      }
+    ],
+    "core_interface_versions": {
+      "sadf": "0.1.0"
+    },
+    "fidelity_profiles": [
+      {
+        "detail": "chassis point-mass + power/thermal",
+        "determinism_class": "bit_exact",
+        "tier": "massmodel"
+      },
+      {
+        "detail": "rigid chassis + wheels, no contact",
+        "determinism_class": "bit_exact",
+        "tier": "kinematic"
+      },
+      {
+        "detail": "full wheel/soil contact + drill",
+        "determinism_class": "tolerance",
+        "tier": "articulated"
+      }
+    ],
+    "flight_stacks": [],
+    "frames": [
+      {
+        "name": "body"
+      },
+      {
+        "name": "sensor_mast",
+        "parent": "body",
+        "transform": {
+          "rotation_quat_xyzw": {
+            "w": 1.0,
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "translation_m": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 1.1
+          }
+        }
+      },
+      {
+        "name": "wheel_front_left",
+        "parent": "body",
+        "transform": {
+          "rotation_quat_xyzw": {
+            "w": 1.0,
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "translation_m": {
+            "x": 0.5,
+            "y": 0.4,
+            "z": 0.25
+          }
+        }
+      },
+      {
+        "name": "drill",
+        "parent": "body",
+        "transform": {
+          "rotation_quat_xyzw": {
+            "w": 1.0,
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "translation_m": {
+            "x": 0.4,
+            "y": 0.0,
+            "z": 0.2
+          }
+        }
+      }
+    ],
+    "geometry": [
+      {
+        "format": "gltf",
+        "frame": "body",
+        "lod": 0,
+        "role": "visual",
+        "uri": "geometry/prospecting-rover.glb"
+      },
+      {
+        "format": "usd",
+        "frame": "body",
+        "lod": 0,
+        "role": "visual",
+        "uri": "geometry/prospecting-rover.usda"
+      },
+      {
+        "format": "gltf",
+        "frame": "body",
+        "lod": 0,
+        "role": "collision",
+        "uri": "geometry/prospecting-rover-collision.glb"
+      },
+      {
+        "format": "usd",
+        "frame": "body",
+        "lod": 0,
+        "role": "collision",
+        "uri": "geometry/prospecting-rover-collision.usda"
+      }
+    ],
+    "identity": {
+      "description": "Active-perception prospecting rover for permanently shadowed regions: neutron, NIR, GPR, and drill-assay sensing with a drill, on a four-wheel chassis.",
+      "id": "astro-mine.fleet.prospecting-rover",
+      "kind": "rover",
+      "labels": {
+        "scenario": "lunar-polar-ice-prospecting",
+        "site": "shackleton-de-gerlache"
+      },
+      "name": "Prospecting Rover",
+      "version": "0.1.0"
+    },
+    "interfaces": {
+      "action_space": "prospect-rover/act-v1",
+      "observation_space": "prospect-rover/obs-v1"
+    },
+    "joints": [
+      {
+        "axis": {
+          "x": 0.0,
+          "y": 1.0,
+          "z": 0.0
+        },
+        "child_body": "wheel_front_left",
+        "limits": {
+          "effort_nm": 40.0,
+          "velocity_rad_s": 6.0
+        },
+        "name": "wheel_fl",
+        "parent_body": "chassis",
+        "type": "continuous"
+      },
+      {
+        "axis": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 1.0
+        },
+        "child_body": "drill_head",
+        "limits": {
+          "effort_nm": 120.0,
+          "position_rad": {
+            "max": 0.0,
+            "min": -0.5
+          }
+        },
+        "name": "drill_z",
+        "parent_body": "chassis",
+        "type": "prismatic"
+      }
+    ],
+    "mobility": {
+      "contact": [
+        {
+          "dimensions_m": {
+            "x": 0.3,
+            "y": 0.15,
+            "z": 0.3
+          },
+          "footprint_m2": 0.045,
+          "kind": "wheel",
+          "max_ground_pressure_pa": 8000.0,
+          "max_slope_deg": 25.0
+        }
+      ],
+      "regimes": ["surface"]
+    },
+    "payload": {
+      "capacity_kg": 5.0,
+      "slots": [
+        {
+          "accepts": ["sensor", "payload"],
+          "frame": "body",
+          "max_mass_kg": 8.0,
+          "name": "top_deck"
+        }
+      ]
+    },
+    "power": {
+      "floor_w": 25.0,
+      "loads_by_mode": [
+        {
+          "mode": "idle",
+          "power_w": 30.0
+        },
+        {
+          "mode": "drive",
+          "power_w": 120.0
+        },
+        {
+          "mode": "prospect",
+          "power_w": 95.0
+        },
+        {
+          "mode": "drill",
+          "power_w": 160.0
+        }
+      ],
+      "sources": [
+        {
+          "kind": "solar",
+          "name": "body_solar",
+          "nominal_power_w": 210.0
+        },
+        {
+          "kind": "rhu",
+          "name": "rhu_pack",
+          "nominal_power_w": 8.0
+        }
+      ],
+      "storage": [
+        {
+          "capacity_j": 3600000.0,
+          "max_charge_w": 150.0,
+          "max_discharge_w": 300.0,
+          "name": "main_battery"
+        }
+      ]
+    },
+    "root_frame": "body",
+    "sensors": [
+      {
+        "frame": "body",
+        "kind": "neutron_spectrometer",
+        "name": "neutron_spectrometer",
+        "observation_model": {
+          "depth_response_m": 0.7,
+          "footprint_m2": 4.0,
+          "noise_sigma": 0.08
+        },
+        "resource": {
+          "si_unit": "mass_fraction",
+          "species": "water_equivalent_hydrogen"
+        }
+      },
+      {
+        "frame": "sensor_mast",
+        "kind": "nir_spectrometer",
+        "name": "nir_spectrometer",
+        "observation_model": {
+          "footprint_m2": 0.25,
+          "fov_deg": 12.0,
+          "noise_sigma": 0.05,
+          "range_m": 3.0
+        },
+        "pose": {
+          "rotation_quat_xyzw": {
+            "w": 1.0,
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "translation_m": {
+            "x": 0.2,
+            "y": 0.0,
+            "z": 0.0
+          }
+        },
+        "resource": {
+          "si_unit": "dimensionless",
+          "species": "water_ice_band_depth"
+        }
+      },
+      {
+        "frame": "body",
+        "kind": "gpr",
+        "name": "gpr",
+        "observation_model": {
+          "depth_response_m": 2.0,
+          "footprint_m2": 1.0,
+          "noise_sigma": 0.1
+        },
+        "resource": {
+          "si_unit": "volume_fraction",
+          "species": "subsurface_ice_fraction"
+        }
+      },
+      {
+        "frame": "body",
+        "kind": "drill_assay",
+        "name": "drill_assay",
+        "observation_model": {
+          "depth_response_m": 0.5,
+          "footprint_m2": 0.01,
+          "noise_sigma": 0.03
+        },
+        "resource": {
+          "si_unit": "mass_fraction",
+          "species": "water_equivalent_hydrogen"
+        }
+      },
+      {
+        "frame": "body",
+        "kind": "imu",
+        "name": "nav_imu"
+      },
+      {
+        "frame": "sensor_mast",
+        "kind": "imaging",
+        "name": "hazcam",
+        "observation_model": {
+          "fov_deg": 70.0,
+          "range_m": 20.0
+        }
+      }
+    ],
+    "subassemblies": [],
+    "thermal": {
+      "dissipation_w": 60.0,
+      "heater_power_w": 30.0,
+      "operating_range_k": {
+        "max": 330.0,
+        "min": 120.0
+      },
+      "radiator_area_m2": 0.4,
+      "surface_coupling": true,
+      "survival_range_k": {
+        "max": 360.0,
+        "min": 95.0
+      }
+    }
+  },
+  "sadf_version": "0.1"
+}

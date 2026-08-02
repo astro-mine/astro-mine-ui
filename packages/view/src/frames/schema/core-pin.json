@@ -1,0 +1,10 @@
+{
+  "_comment": "GENERATED PIN — the astro-mine-platform commit the vendored Core schemas were copied from, and their exact bytes. Checked by `pnpm check:core-schema` (CI, networked, CORE_REPO_TOKEN). `frames/generated/units.ts` is generated FROM these bytes by `pnpm codegen:units`; never hand-edit either. REPOINTED IN ui#6: this pinned astro-mine-core@v0.3.0, a repository superseded by the four-distribution split and pending retirement (docs#93) — a guard watching a file nobody will update again is not a guard. The paths inside are unchanged, because the platform consolidated the packages under one src/astro_mine/, and the bytes are unchanged, which is how the repoint was verified. The platform publishes no tags, so this pins a commit SHA. To re-sync: copy the files from the platform at the new commit, update this pin, re-run `pnpm codegen:units`. See conventions.md §3.1 (cross-language and vendored consumers).",
+  "repo": "astro-mine/astro-mine-platform",
+  "commit": "dc2069c5b895ff81cc13a5cca992668fc2f7dcf2",
+  "source_dir": "src/astro_mine/core/units/schema",
+  "files": {
+    "units.schema.json": "sha256:ade7a5ddb9e9d3a26c544610f7c2b7c68d390011d04163d2a99ca0c8079f00fd",
+    "conformance.json": "sha256:180225b0a61a455dacd34c51061b1bf4e338445bbc0829ff5b1b3bfdc22b26a8"
+  }
+}

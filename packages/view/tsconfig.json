@@ -7,5 +7,10 @@
     "outDir": "dist",
     "tsBuildInfoFile": "dist/.tsbuildinfo"
   },
-  "include": ["src"]
+  // Tests sit *beside* their subjects here, as they did in the repository this came from — keeping
+  // them there is what lets the ported suite run unchanged, which is the issue's own acceptance
+  // criterion. So they are excluded by pattern rather than by living in a `tests/` directory;
+  // without this they would land in `dist/` and in the published package.
+  "include": ["src"],
+  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]
 }
