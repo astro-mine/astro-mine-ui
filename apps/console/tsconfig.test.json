@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  // The tests, type-checked but never emitted — the same split `packages/ui` uses, and for a
+  // related reason: the app's own `tsconfig.json` is what Next type-checks and its `include` is the
+  // application, not the suite. Widening it would put the tests in the Next build's view of the
+  // world.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["vitest/globals", "@testing-library/jest-dom"]
+  },
+  "include": ["src", "tests", "vitest.config.ts"],
+  "exclude": ["node_modules", ".next", "out"]
+}

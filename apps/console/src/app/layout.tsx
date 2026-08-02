@@ -4,8 +4,16 @@ import { ThemeRegistry } from "@astro-mine/ui";
 import { AppRouterCacheProvider } from "@mui/material-nextjs/v16-appRouter";
 import InitColorSchemeScript from "@mui/material/InitColorSchemeScript";
 
+import { AppShell } from "@/shell/AppShell";
+import { RuntimeConfigProvider } from "@/shell/runtimeConfig";
+
 export const metadata: Metadata = {
-  title: "Astro-Mine",
+  // The template is what makes a browser tab, a bookmark and a shared link say which *page* they
+  // are rather than saying "Astro-Mine" eighteen times. Each route sets only its own leaf.
+  title: {
+    default: "Astro-Mine",
+    template: "%s · Astro-Mine",
+  },
   description:
     "Design, simulate and evaluate heterogeneous robotic swarms for planetary exploration and in-situ resource utilization.",
 };
@@ -28,7 +36,11 @@ export const metadata: Metadata = {
  *
  * The theme itself, and `CssBaseline` under it, live in `ThemeRegistry` (`@astro-mine/ui`, ui#3).
  * The shell — sidebar, breadcrumbs, keyboard navigation, focus management, and where the colour-mode
- * toggle sits — is ui#5.
+ * toggle sits — is `AppShell` (ui#5), and every page in the application mounts inside it.
+ *
+ * `RuntimeConfigProvider` sits **outside** the shell rather than inside any page, because the shell's
+ * own chrome reports the configuration state: the notice that says what is missing is part of the
+ * layout, and it must appear whichever page a reader happens to have landed on.
  */
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
@@ -36,7 +48,11 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body>
         <InitColorSchemeScript defaultMode="system" />
         <AppRouterCacheProvider options={{ enableCssLayer: true }}>
-          <ThemeRegistry>{children}</ThemeRegistry>
+          <ThemeRegistry>
+            <RuntimeConfigProvider>
+              <AppShell>{children}</AppShell>
+            </RuntimeConfigProvider>
+          </ThemeRegistry>
         </AppRouterCacheProvider>
       </body>
     </html>

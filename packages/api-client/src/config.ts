@@ -6,7 +6,7 @@
 // environment, and a rebuild per environment means the artifact that was tested is not the
 // artifact that ships.
 //
-// So the app fetches `/config.json` at boot, from beside itself. `.gitignore` keeps
+// So the app fetches `/config.json` at boot, from the root of the deployment. `.gitignore` keeps
 // `apps/console/public/config.json` out of the tree deliberately: the repository ships **no**
 // endpoint, so an unconfigured build degrades visibly out of the box instead of pretending to be
 // configured and failing later, somewhere less obvious.
@@ -14,8 +14,25 @@
 // **A missing configuration is not an error.** It is a state, with a reason and a remedy, and
 // nothing here throws into a blank page — honesty rule 3, and an acceptance criterion of ui#2.
 
-/** The file the application reads at boot. Relative, so it resolves under any base path. */
-export const RUNTIME_CONFIG_PATH = "config.json";
+/**
+ * The file the application reads at boot.
+ *
+ * **Root-relative, and that leading slash is the whole point.** This was written as bare
+ * `config.json` — relative, on the reasoning that a relative URL would keep working if the bundle
+ * were served under a base path. A relative URL resolves against **the current document**, not
+ * against the application, and that distinction is invisible for exactly as long as the application
+ * has one page. `ui#5` gave it twenty: from `/registry/` the browser asked for
+ * `/registry/config.json`, from `/registry/artifact/` it asked for `/registry/artifact/config.json`,
+ * and a perfectly well-configured deployment reported "no API is configured" on nineteen routes out
+ * of twenty. It could not be seen from the home page, which is the only page there was when the
+ * decision was made.
+ *
+ * The base-path case it was reaching for is still served, and served properly: a deployment under a
+ * prefix passes `url` to {@link loadRuntimeConfig} rather than hoping a relative path lands
+ * somewhere useful. That is a decision the *application* can make, because only the application
+ * knows its own base path.
+ */
+export const RUNTIME_CONFIG_PATH = "/config.json";
 
 /** What a deployment must tell the application. */
 export interface RuntimeConfig {
@@ -36,11 +53,11 @@ export type RuntimeConfigState =
   | { status: "invalid"; reason: string; remedy: string };
 
 const WRITE_ONE =
-  `Create \`${RUNTIME_CONFIG_PATH}\` beside the deployed application, containing ` +
+  `Create \`config.json\` at the root of the deployed application, containing ` +
   `{"apiBaseUrl": "https://your-api.example.org"}.`;
 
 const FIX_IT =
-  `Correct \`${RUNTIME_CONFIG_PATH}\` beside the deployed application: it must be a JSON object ` +
+  `Correct \`config.json\` at the root of the deployed application: it must be a JSON object ` +
   `with an \`apiBaseUrl\` that is an absolute http(s) URL.`;
 
 /** An absolute http(s) URL — the only thing a browser can use as an API origin. */
@@ -62,7 +79,12 @@ function isAbsoluteHttpUrl(value: string): boolean {
  * exception to find out what a user should be told.
  */
 export async function loadRuntimeConfig(options?: {
-  /** Where to read it from. Defaults to `config.json`, relative to the deployed page. */
+  /**
+   * Where to read it from. Defaults to {@link RUNTIME_CONFIG_PATH}, at the deployment root.
+   *
+   * The escape hatch for a bundle served under a prefix: pass `"/console/config.json"`. Only the
+   * application knows its own base path, so only the application can say.
+   */
   url?: string;
   fetch?: typeof globalThis.fetch;
   signal?: AbortSignal;

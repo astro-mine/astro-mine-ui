@@ -154,3 +154,28 @@ jobs:
           grep -q '\[data-mui-color-scheme="dark"\]' apps/console/out/index.html \
             || { echo "::error::the dark colour scheme's CSS is not keyed to data-mui-color-scheme — theme.ts's colorSchemeSelector and InitColorSchemeScript's attribute disagree, and dark mode will never apply"; exit 1; }
           echo "The init script and the dark scheme's CSS agree on data-mui-color-scheme."
+
+      # The fourth property invisible to everything else: every route must actually prerender its own
+      # content (ui#5).
+      #
+      # `useSearchParams` opts its whole subtree out of prerendering, and identity lives in the query
+      # string (ui.md §5.1), so most pages here will reach for it. Called too high in a page, it
+      # empties that page out of the export — the HTML ships with the shell and nothing else, and the
+      # content appears only once JavaScript has run. Every lane stays green: it type-checks, it
+      # builds, the route is listed as static, and jsdom sees a fully rendered component because
+      # jsdom does not prerender at all.
+      #
+      # A page's `<h1>` is the cheapest thing that proves the page itself was rendered. This caught
+      # exactly one regression on the day it was written: the placeholder read its params at the top
+      # level, and all twenty routes exported an empty content region.
+      - name: Every route prerenders its own content
+        run: |
+          empty=""
+          while IFS= read -r page; do
+            grep -qE '<h1[^>]*>[^<]' "$page" || empty="$empty $page"
+          done < <(find apps/console/out -name index.html)
+          if [ -n "$empty" ]; then
+            echo "::error::these routes exported no <h1>, so they prerender nothing and paint blank until hydration — a component is almost certainly calling useSearchParams above the content it needs it for (see shell/searchParams.ts):$empty"
+            exit 1
+          fi
+          echo "All $(find apps/console/out -name index.html | wc -l) routes prerender their own content."
