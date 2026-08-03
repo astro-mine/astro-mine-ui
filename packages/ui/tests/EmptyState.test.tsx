@@ -37,6 +37,32 @@ describe("what it renders", () => {
     const { container } = renderInMode(<EmptyState title="Nothing here yet" />, "light");
     expect(container.textContent?.trim()).not.toBe("");
   });
+
+  it("titles without becoming a heading (ui#7)", () => {
+    // MUI maps `subtitle1` to `<h6>`, so the default would make this title a level-six heading. It
+    // looked harmless while this package was the only caller — a lone `<h6>` has no predecessor,
+    // and axe's `heading-order` rule needs one to compare against, so nothing here could fail. The
+    // first component to render a real `<h2>` above it (an inspector panel) skipped four levels and
+    // axe said so. Asserted here, in the package that owns the decision, so it stays decided.
+    const { queryByRole, getByText } = renderInMode(
+      <EmptyState title="Nothing here yet" />,
+      "light",
+    );
+    expect(queryByRole("heading")).toBeNull();
+    expect(getByText("Nothing here yet").tagName).toBe("P");
+  });
+
+  it("composes under a page heading without breaking the outline", async () => {
+    // The composition that found it. `EmptyState` never appears alone in a real page.
+    const { container } = renderInMode(
+      <>
+        <h2>A panel</h2>
+        <EmptyState title="Nothing here yet" hint="Publish something." />
+      </>,
+      "light",
+    );
+    await expectNoA11yViolations(container);
+  });
 });
 
 describe("accessibility", () => {
