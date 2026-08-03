@@ -29,7 +29,7 @@ jobs:
       # pins (pnpm@11.10.0, from package.json "packageManager"). The version is NOT repeated here:
       # specifying it in both places is an error, not a belt-and-braces.
       - name: Install pnpm
-        uses: pnpm/action-setup@v6
+        uses: pnpm/action-setup@v6.0.9
 
       # The Node version comes from .nvmrc, and the floor is pnpm's, not ours: pnpm 11.10.0 declares
       # engines.node >= 22.13 and crashes on Node 20 with "No such built-in module: node:sqlite".
