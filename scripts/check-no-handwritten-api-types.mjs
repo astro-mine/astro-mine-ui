@@ -37,10 +37,12 @@ import { fileURLToPath } from "node:url";
  *
  * The rule this gate enforces is *"no shape restated by hand under a schema's name"* — and the test
  * for "by hand" is not the file's name, it is whether a generator wrote it and something fails when
- * its source moves. Both of these qualify, and each is listed with the pair that makes it qualify:
+ * its source moves. All three of these qualify, and each is listed with the pair that makes it
+ * qualify:
  *
- *   packages/api-client/src/generated  ← `codegen-api-client.mjs`, guarded by `check-api-drift.mjs`
- *   packages/view/src/frames/generated ← `codegen-units.mjs`,      guarded by `check-core-schema.mjs`
+ *   packages/api-client/src/generated   ← `codegen-api-client.mjs`,  guarded by `check-api-drift.mjs`
+ *   packages/view/src/frames/generated  ← `codegen-units.mjs`,       guarded by `check-core-schema.mjs`
+ *   packages/inspectors/src/generated   ← `codegen-vocabularies.mjs`, guarded by `check-vocabularies.mjs`
  *
  * The second arrived with `ui#6` and is the reason this stopped being one constant. View generates
  * `PlanetaryCRS` from **Core's** units schema, which is also the name of an API component schema —
@@ -49,8 +51,18 @@ import { fileURLToPath } from "node:url";
  * unavailable here by design: `packages/view` may not import `@astro-mine/api-client`, because a
  * package may not import a sibling (ui.md §3). Exempting the tree is the honest answer; exempting
  * the *name* would have hidden a real hand-copy the day someone made one.
+ *
+ * The third arrived with `ui#7` and is listed for consistency rather than because it collides today:
+ * the inspector registry generates Core's `PluginKind` and Hub's container vocabulary from the
+ * platform's Python, and neither name is an API component schema — the API serves both of those
+ * fields as bare `string | null`. Registering the tree is what keeps that from becoming a trap on
+ * the day the API does publish them as enums, which is a change worth wanting.
  */
-const GENERATED_TREES = ["packages/api-client/src/generated", "packages/view/src/frames/generated"];
+const GENERATED_TREES = [
+  "packages/api-client/src/generated",
+  "packages/view/src/frames/generated",
+  "packages/inspectors/src/generated",
+];
 
 /**
  * The client owns the transport. Nothing else may open a request.
