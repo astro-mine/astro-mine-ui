@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  // The tests, type-checked but never emitted — the same split `packages/ui` and
+  // `packages/api-client` use, and for the same reason: `tsconfig.json` is `composite`, the root
+  // solution file references it, and a composite project may not set `noEmit`, so widening its
+  // `include` would put the test files in `dist/` and in the published package.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["vitest/globals", "@testing-library/jest-dom"]
+  },
+  "include": ["src", "tests", "vitest.config.ts"]
+}

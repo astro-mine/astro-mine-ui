@@ -26,14 +26,27 @@
   ],
   "scripts": {
     "build": "tsc -b",
-    "typecheck": "tsc -b"
+    "typecheck": "tsc -b && tsc -p tsconfig.test.json",
+    "test": "vitest run"
   },
   "dependencies": {
-    "@astro-mine/ui": "workspace:*",
-    "@astro-mine/view": "workspace:*"
+    "@astro-mine/ui": "workspace:*"
   },
   "peerDependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.0",
+    "@mui/material": "^9.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@mui/material": "^9.2.0",
+    "@testing-library/jest-dom": "^7.0.0",
+    "@testing-library/react": "^16.3.2",
+    "axe-core": "^4.12.1",
+    "jsdom": "^30.0.1",
+    "vitest": "^4.1.10"
   }
 }

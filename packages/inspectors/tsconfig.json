@@ -8,5 +8,10 @@
     "tsBuildInfoFile": "dist/.tsbuildinfo"
   },
   "include": ["src"],
-  "references": [{ "path": "../ui" }, { "path": "../view" }]
+  // `../view` is NOT referenced, and its absence is the design rather than an oversight. The
+  // layering allowlist permits `inspectors -> view`, but taking that edge with a static import would
+  // put Cesium in the graph of every page that renders an artifact row — @astro-mine/view publishes
+  // one entry and it re-exports the globe. The application owns the single client-only Cesium mount
+  // and passes the mounted globe down through `InspectorSlots`. See src/model.ts.
+  "references": [{ "path": "../ui" }]
 }
