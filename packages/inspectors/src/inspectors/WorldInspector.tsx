@@ -55,7 +55,18 @@ export function WorldInspector({ subject, slots }: InspectorPanelProps) {
           // reader cannot act on is worse than admitting there is none to offer.
         />
       ) : (
-        <Box sx={{ height: 420, border: 1, borderColor: "divider", borderRadius: 1 }}>
+        // `overflow: hidden` is not the fix for anything — `@astro-mine/view`'s `fillHost` is. It
+        // is here because a fixed-height frame with a rounded border is a frame: whatever it holds
+        // is clipped to it, or the corners are wrong and the border is a suggestion.
+        <Box
+          sx={{
+            height: 420,
+            overflow: "hidden",
+            border: 1,
+            borderColor: "divider",
+            borderRadius: 1,
+          }}
+        >
           {slots.globe}
         </Box>
       )}

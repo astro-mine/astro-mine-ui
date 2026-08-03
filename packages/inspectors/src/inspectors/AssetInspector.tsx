@@ -59,7 +59,17 @@ export function AssetInspector({ subject, slots }: InspectorPanelProps) {
           hint="This page did not resolve a visual geometry for the asset. A SADF bundle can legitimately ship without one — a document that describes mass, power and capability but carries no mesh is a complete asset, not a broken one."
         />
       ) : (
-        <Box sx={{ height: 360, border: 1, borderColor: "divider", borderRadius: 1 }}>
+        // Clipped for the reason `WorldInspector`'s frame is: a fixed-height rounded frame holds
+        // what it is given, and a geometry preview is another thing that sizes itself.
+        <Box
+          sx={{
+            height: 360,
+            overflow: "hidden",
+            border: 1,
+            borderColor: "divider",
+            borderRadius: 1,
+          }}
+        >
           {slots.geometry}
         </Box>
       )}
