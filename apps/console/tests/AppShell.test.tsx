@@ -11,8 +11,7 @@ import { describe, expect, it } from "vitest";
 import { AppShell } from "@/shell/AppShell";
 import { NAV_ENTRIES } from "@/shell/navigation";
 
-import { expectNoA11yViolations } from "./a11y";
-import { forEachColorScheme, renderShell } from "./render";
+import { expectNoA11yViolations, forEachColorScheme, renderLight } from "@astro-mine/ui/testing";
 import { goTo, router } from "./router";
 
 function Page({ children = "Page content" }: { children?: string }) {
@@ -23,7 +22,7 @@ const shell = (children = <Page />) => <AppShell>{children}</AppShell>;
 
 describe("the frame", () => {
   it("renders the landmarks a reader navigates by", async () => {
-    renderShell(shell());
+    renderLight(shell());
     expect(screen.getByRole("banner")).toBeInTheDocument();
     expect(screen.getByRole("navigation", { name: "Sections" })).toBeInTheDocument();
     expect(screen.getByRole("navigation", { name: "Breadcrumb" })).toBeInTheDocument();
@@ -34,17 +33,17 @@ describe("the frame", () => {
   it("names the sections landmark exactly once", async () => {
     // Two drawers hold the same list, and only one of them is ever on screen. Two landmarks with
     // the same name would be two "Sections" in a landmark list, one of which goes nowhere.
-    renderShell(shell());
+    renderLight(shell());
     expect(screen.getAllByRole("navigation", { name: "Sections" })).toHaveLength(1);
   });
 
   it("mounts the page it was given", () => {
-    renderShell(shell(<Page>The leaderboard</Page>));
+    renderLight(shell(<Page>The leaderboard</Page>));
     expect(screen.getByRole("heading", { name: "The leaderboard" })).toBeInTheDocument();
   });
 
   it("puts every destination in the sidebar", () => {
-    renderShell(shell());
+    renderLight(shell());
     const nav = screen.getByRole("navigation", { name: "Sections" });
     for (const entry of NAV_ENTRIES) {
       expect(
@@ -58,7 +57,7 @@ describe("the frame", () => {
 describe("the active entry", () => {
   it("marks exactly one entry as the current page", async () => {
     goTo("/registry/artifact");
-    renderShell(shell());
+    renderLight(shell());
     const current = screen.getAllByRole("link", { current: "page" });
     expect(current).toHaveLength(1);
     expect(current[0]).toHaveAttribute("href", "/registry/artifact");
@@ -68,7 +67,7 @@ describe("the active entry", () => {
     // The bug the retired shell shipped, asserted where a reader would meet it rather than only in
     // the resolver's own unit test.
     goTo("/registry/artifact");
-    renderShell(shell());
+    renderLight(shell());
     const nav = screen.getByRole("navigation", { name: "Sections" });
     expect(within(nav).getByRole("link", { name: "Browse" })).not.toHaveAttribute("aria-current");
   });
@@ -77,7 +76,7 @@ describe("the active entry", () => {
 describe("navigation moves focus and says so", () => {
   it("focuses the content region and announces the new title", async () => {
     goTo("/");
-    const { rerender } = renderShell(shell());
+    const { rerender } = renderLight(shell());
     const main = screen.getByRole("main");
 
     // On first load, focus belongs at the top of the document, where the skip link is — moving it
@@ -97,7 +96,7 @@ describe("navigation moves focus and says so", () => {
 
   it("re-announces when the route changes again", async () => {
     goTo("/bench/leaderboard");
-    const { rerender } = renderShell(shell());
+    const { rerender } = renderLight(shell());
 
     goTo("/design/new");
     await act(async () => {
@@ -109,7 +108,7 @@ describe("navigation moves focus and says so", () => {
   });
 
   it("announces politely and atomically, so a partial title is never read", () => {
-    renderShell(shell());
+    renderLight(shell());
     const live = document.querySelector("[aria-live]");
     expect(live).toHaveAttribute("aria-live", "polite");
     expect(live).toHaveAttribute("aria-atomic", "true");
@@ -119,7 +118,7 @@ describe("navigation moves focus and says so", () => {
 describe("the keyboard", () => {
   it("reaches the skip link first, and it targets the content region", async () => {
     const user = userEvent.setup();
-    renderShell(shell());
+    renderLight(shell());
 
     await user.tab();
     const skip = screen.getByRole("link", { name: "Skip to content" });
@@ -129,7 +128,7 @@ describe("the keyboard", () => {
 
   it("jumps to a destination on its chord", async () => {
     const user = userEvent.setup();
-    renderShell(shell());
+    renderLight(shell());
 
     await user.keyboard("gl");
     expect(router.push).toHaveBeenCalledWith("/bench/leaderboard");
@@ -137,7 +136,7 @@ describe("the keyboard", () => {
 
   it("does nothing for a chord that is not one", async () => {
     const user = userEvent.setup();
-    renderShell(shell());
+    renderLight(shell());
 
     await user.keyboard("gz");
     expect(router.push).not.toHaveBeenCalled();
@@ -147,7 +146,7 @@ describe("the keyboard", () => {
     // The failure mode a bare keydown listener has by default: a shortcut that eats a keystroke
     // from a text field is worse than no shortcut.
     const user = userEvent.setup();
-    renderShell(shell());
+    renderLight(shell());
 
     await user.click(screen.getByRole("searchbox", { name: "Search the registry" }));
     await user.keyboard("gl");
@@ -158,7 +157,7 @@ describe("the keyboard", () => {
 
   it("leaves modified keystrokes to the browser and to assistive technology", async () => {
     const user = userEvent.setup();
-    renderShell(shell());
+    renderLight(shell());
 
     await user.keyboard("{Control>}g{/Control}l");
     expect(router.push).not.toHaveBeenCalled();
@@ -166,14 +165,14 @@ describe("the keyboard", () => {
 
   it("focuses search on `/`", async () => {
     const user = userEvent.setup();
-    renderShell(shell());
+    renderLight(shell());
 
     await user.keyboard("/");
     expect(screen.getByRole("searchbox", { name: "Search the registry" })).toHaveFocus();
   });
 
   it("advertises a chord where the control is, not inside its name", async () => {
-    renderShell(shell());
+    renderLight(shell());
     const leaderboard = screen.getByRole("link", { name: "Leaderboard" });
     // Glued into the label, the accessible name would read "Leaderboard g l".
     expect(leaderboard).toHaveAttribute("aria-keyshortcuts", "g l");
@@ -181,7 +180,7 @@ describe("the keyboard", () => {
 
   it("reaches every destination with the keyboard alone", async () => {
     const user = userEvent.setup();
-    renderShell(shell());
+    renderLight(shell());
     const nav = screen.getByRole("navigation", { name: "Sections" });
 
     const reached = new Set<string>();
@@ -204,7 +203,7 @@ describe("the keyboard", () => {
 describe("the sidebar", () => {
   it("collapses a group and restores it", async () => {
     const user = userEvent.setup();
-    renderShell(shell());
+    renderLight(shell());
     const nav = screen.getByRole("navigation", { name: "Sections" });
     const benchmark = within(nav).getByRole("button", { name: "Benchmark" });
 
@@ -222,7 +221,7 @@ describe("the sidebar", () => {
   });
 
   it("points its disclosure at the list it controls", async () => {
-    renderShell(shell());
+    renderLight(shell());
     const nav = screen.getByRole("navigation", { name: "Sections" });
     const benchmark = within(nav).getByRole("button", { name: "Benchmark" });
     const listId = benchmark.getAttribute("aria-controls");
@@ -234,7 +233,7 @@ describe("the sidebar", () => {
 describe("the responsive drawer", () => {
   it("opens from the top bar and stays operable", async () => {
     const user = userEvent.setup();
-    renderShell(shell());
+    renderLight(shell());
 
     // At rest only the permanent drawer is mounted, which is what keeps one copy of every link in
     // the DOM. Opening the temporary one is what a reader below the breakpoint does.
@@ -254,7 +253,7 @@ describe("the responsive drawer", () => {
 
   it("closes itself when a destination is followed", async () => {
     const user = userEvent.setup();
-    renderShell(shell());
+    renderLight(shell());
 
     await user.click(screen.getByRole("button", { name: "Open navigation" }));
     const dialog = await screen.findByRole("presentation");
@@ -271,7 +270,7 @@ describe("global search", () => {
     // The entry point, not the results: search over the catalog is ui#10's, and routing there with
     // the query in the URL is what stops this box becoming a second implementation of it.
     const user = userEvent.setup();
-    renderShell(shell());
+    renderLight(shell());
 
     await user.type(screen.getByRole("searchbox", { name: "Search the registry" }), "shackleton");
     await user.keyboard("{Enter}");
@@ -281,7 +280,7 @@ describe("global search", () => {
 
   it("does nothing on an empty query", async () => {
     const user = userEvent.setup();
-    renderShell(shell());
+    renderLight(shell());
 
     await user.click(screen.getByRole("searchbox", { name: "Search the registry" }));
     await user.keyboard("   {Enter}");
@@ -299,7 +298,7 @@ describe("accessibility", () => {
 
   it("is axe-clean with the navigation drawer open", async () => {
     const user = userEvent.setup();
-    renderShell(shell());
+    renderLight(shell());
     await user.click(screen.getByRole("button", { name: "Open navigation" }));
     await screen.findByRole("presentation");
     // The drawer is a portal, so it is not inside the render container — the whole document is the

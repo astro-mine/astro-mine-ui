@@ -1,7 +1,7 @@
 {
   "name": "@astro-mine/inspectors",
   "version": "0.0.0",
-  "description": "The artifact-kind to panel registry — the one survivor of the retired Surface contract. A world artifact renders a globe and a policy renders a scorecard, resolved by Core kind, Hub artifact_kind and an attribute predicate.",
+  "description": "The artifact-kind to panel registry \u2014 the one survivor of the retired Surface contract. A world artifact renders a globe and a policy renders a scorecard, resolved by Core kind, Hub artifact_kind and an attribute predicate.",
   "license": "Apache-2.0",
   "type": "module",
   "repository": {
@@ -26,8 +26,7 @@
   ],
   "scripts": {
     "build": "tsc -b",
-    "typecheck": "tsc -b && tsc -p tsconfig.test.json",
-    "test": "vitest run"
+    "typecheck": "tsc -b && tsc -p tsconfig.test.json"
   },
   "dependencies": {
     "@astro-mine/ui": "workspace:*"

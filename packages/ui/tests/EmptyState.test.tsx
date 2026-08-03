@@ -4,8 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import Button from "@mui/material/Button";
 import { EmptyState } from "../src/components/EmptyState.js";
-import { expectNoA11yViolations } from "./a11y.js";
-import { forEachColorScheme, renderInMode } from "./render.js";
+import { expectNoA11yViolations, forEachColorScheme, renderInMode } from "../src/testing.js";
 
 describe("what it renders", () => {
   it("says what is empty", () => {

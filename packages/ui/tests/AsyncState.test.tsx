@@ -4,8 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { AsyncState, type Async } from "../src/components/AsyncState.js";
 import { EmptyState } from "../src/components/EmptyState.js";
-import { expectNoA11yViolations } from "./a11y.js";
-import { forEachColorScheme, renderInMode } from "./render.js";
+import { expectNoA11yViolations, forEachColorScheme, renderInMode } from "../src/testing.js";
 
 const renderData = (data: string) => <p>{data}</p>;
 

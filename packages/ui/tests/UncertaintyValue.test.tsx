@@ -10,8 +10,7 @@
 import { describe, expect, it } from "vitest";
 
 import { UncertaintyValue } from "../src/components/UncertaintyValue.js";
-import { expectNoA11yViolations } from "./a11y.js";
-import { forEachColorScheme, renderInMode } from "./render.js";
+import { expectNoA11yViolations, forEachColorScheme, renderInMode } from "../src/testing.js";
 
 describe("a null bound", () => {
   it("renders an open mark, never a zero-length error bar", () => {

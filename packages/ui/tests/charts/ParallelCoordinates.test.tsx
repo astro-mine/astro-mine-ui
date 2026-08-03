@@ -15,8 +15,7 @@ import {
   exclusionCaption,
   ParallelCoordinates,
 } from "../../src/charts/ParallelCoordinates.js";
-import { expectNoA11yViolations } from "../a11y.js";
-import { forEachColorScheme, renderInMode } from "../render.js";
+import { expectNoA11yViolations, forEachColorScheme, renderInMode } from "../../src/testing.js";
 import { COMPARISON_AXES, COMPARISON_ROWS } from "./fixtures.js";
 
 const ready = { status: "ready", data: COMPARISON_ROWS } as const;

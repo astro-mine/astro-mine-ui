@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  // The browser lane, type-checked but never emitted. It is not part of any package's build — it
+  // drives the built export from outside — so it needs its own project rather than a place in one
+  // of theirs.
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["node"]
+  },
+  "include": ["e2e", "playwright.config.ts"]
+}

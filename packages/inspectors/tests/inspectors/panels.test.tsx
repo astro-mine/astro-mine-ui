@@ -12,7 +12,7 @@ import {
   PolicyInspector,
   WorldInspector,
 } from "../../src/index.js";
-import { expectNoA11yViolations, forEachColorScheme, renderInMode } from "../render.js";
+import { expectNoA11yViolations, forEachColorScheme, renderInMode } from "@astro-mine/ui/testing";
 import { subject } from "../fixtures.js";
 
 describe("WorldInspector", () => {

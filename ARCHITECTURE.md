@@ -218,6 +218,82 @@ holding the property that used to hold itself:
   `<figure>` whose `<figcaption>` carries the full description — including which values carry no
   measured bound — and interaction is offered through real buttons outside the graphic.
 
+## How this is tested
+
+**One command, one run.** `pnpm test` is a single Vitest over five projects — `api-client`, `ui`,
+`inspectors`, `view`, `console` — declared in the root `vitest.config.ts`. `pnpm test --project ui`
+narrows it. There is deliberately no per-package `test` script: two ways to run a suite is how the
+two ways end up configured differently.
+
+**The harness is shared, in the only two places it can be.** A package may not import a sibling, so
+the harness could not be one module: `@astro-mine/ui/testing` carries the render half — the theme,
+both colour schemes, the axe assertion — and `@astro-mine/api-client/testing` carries the faked API.
+A test imports one from each. Both are subpath exports with optional peer dependencies, because
+Testing Library, axe and MSW must never reach a page bundle.
+
+Mounting a component against the faked API costs five lines, and that is asserted by counting them
+rather than claimed:
+
+```tsx
+const { api, use } = mockApi();
+
+use(api.hubSearch({ body: [hit("excavator")] }));
+renderLight(<ArtifactList />);
+expect(await screen.findByText("excavator")).toBeInTheDocument();
+```
+
+The fake is **generated from the same OpenAPI document as the client**, so a fixture that stops
+matching the API fails to compile — it cannot drift any more than the client can. An un-stubbed
+request is an error rather than a warning: a request the test did not stub is a request the test did
+not think about.
+
+| Lane                         | Fails on                                                                                                    |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| **Static**                   | layering, hand-written API types, format, lint, types — and the five gate self-tests                        |
+| **Contract**                 | the client, the vendored Core schemas or the generated vocabularies drifting from their upstream at `HEAD`  |
+| **Unit & component**         | a failing test, or coverage below the floor                                                                 |
+| **Contrast & colour vision** | a WCAG pairing or a categorical-palette pair that fails                                                     |
+| **Build & emitted bytes**    | a build error, a missing export, unstyled first paint, a route that prerenders nothing, or Cesium preloaded |
+| **Bundle budget**            | a route exceeding its per-route JavaScript budget                                                           |
+| **E2E**                      | a route that does not serve, paint its own heading, or hydrate cleanly                                      |
+| **Accessibility**            | an axe violation on any route in either scheme — **reporting, not gating, until Wave 30**                   |
+
+Each is its own job, so a red check names itself. **Every gate carries a test proving it can
+reject**, against fixture trees or by mutating the real one and restoring it; a gate nobody has
+watched fail is a gate nobody should trust.
+
+### Two environment facts, because both look like product defects and are not
+
+**Playwright needs one system package on a fresh WSL checkout, and then it works.** This used to read
+"cannot launch a browser here, CI is the arbiter", which was a fair description of the symptom and
+the wrong conclusion. The failure is `libasound.so.2: cannot open shared object file` — a missing
+shared library, not a broken test and not a broken config — and it is fixed by installing it:
+
+```
+sudo pnpm exec playwright install-deps chromium    # the whole supported set
+sudo apt-get install -y libasound2t64              # or just the one, on Ubuntu 24.04
+pnpm exec playwright install chromium              # the browser binary itself
+```
+
+On **Ubuntu 24.04 the package is `libasound2t64`**, not `libasound2` — renamed in the 64-bit `time_t`
+transition, and `apt install libasound2` fails with "no installation candidate", which reads like the
+package is unavailable rather than renamed.
+
+With that installed, `pnpm e2e` and `pnpm e2e:a11y` both run here and pass. A red browser lane is
+therefore a **finding**, not an environment quirk to shrug at. What remains true is that the
+libraries are a machine-level prerequisite rather than something the repository can install for you,
+so a fresh clone on a fresh machine meets this once.
+
+**`jsdom` does not implement every `File` and `Blob` method.** `File.text()` and
+`Blob.slice().arrayBuffer()` are both absent, so a page reading an uploaded file must use an API
+jsdom has — `FileReader` — and the replay reader's blob path is exercised in the browser lane rather
+than the component one. A test that reaches for the missing method fails in a way that reads like a
+product bug and is not.
+
+A third, narrower one, recorded because it cost a wrong fix before the right one: **under jsdom,
+`import.meta.url` is a `file:` URL inside a test callback and an `http:` one at module scope.** A
+test that resolves a fixture path at module scope cannot use it.
+
 ## Stack
 
 | Concern         | Standard                                                                                                 |

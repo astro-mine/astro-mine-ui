@@ -2,7 +2,7 @@
   "name": "@astro-mine/console",
   "version": "0.0.0",
   "private": true,
-  "description": "The Astro-Mine console — the platform's single front door. A Next.js application, statically exported, that calls astro-mine-api from the browser. Deployed, never consumed: it publishes nothing.",
+  "description": "The Astro-Mine console \u2014 the platform's single front door. A Next.js application, statically exported, that calls astro-mine-api from the browser. Deployed, never consumed: it publishes nothing.",
   "license": "Apache-2.0",
   "type": "module",
   "repository": {
@@ -15,8 +15,7 @@
     "dev": "pnpm cesium:assets && next dev",
     "build": "pnpm cesium:assets && next build",
     "start": "next start",
-    "typecheck": "tsc --noEmit && tsc -p tsconfig.test.json --noEmit",
-    "test": "vitest run"
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.test.json --noEmit"
   },
   "dependencies": {
     "@astro-mine/api-client": "workspace:*",

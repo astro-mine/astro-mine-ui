@@ -1,6 +1,6 @@
 import { createHash, webcrypto } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { join } from "node:path";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { McapWriter } from "@mcap/core";
 
@@ -16,10 +16,29 @@ import { buildTrack, posesAt } from "./track";
  * with itself; this proves it agrees with the producer, decompresses real zstd, and seeks a real
  * index (conventions.md §11, contract tests).
  */
-// Vitest's root is `lib/`, and `import.meta.url` is not a file: URL under its transform.
-const FIXTURE = new Uint8Array(
-  readFileSync(resolve(process.cwd(), "fixtures/replay/episode.mcap")),
-);
+// The package root, injected by the `view` project in the workspace `vitest.config.ts` (ui#8).
+//
+// It used to be `process.cwd()`, which worked only because Vitest ran once per package. The moment
+// the five projects became one run, cwd was the workspace root and this file could not find its own
+// fixture.
+//
+// `import.meta.url` is the obvious replacement and does not work here: under jsdom it is a file URL
+// **inside a test callback** and an `http:` one at **module scope**, which is where this reads. That
+// is what the previous comment meant, and it cost a probe to rediscover — so it is written down
+// properly this time rather than as an aside.
+//
+// No fallback to cwd on purpose: if the variable is absent the run is misconfigured, and a silent
+// fallback would put this back to passing for the wrong reason on one machine and failing on
+// another.
+const PACKAGE_ROOT = process.env.VIEW_PACKAGE_ROOT;
+if (PACKAGE_ROOT === undefined) {
+  throw new Error(
+    "VIEW_PACKAGE_ROOT is not set. This suite reads a committed fixture from the package root, and " +
+      "the workspace vitest.config.ts sets it for the `view` project. Run it through `pnpm test`.",
+  );
+}
+
+const FIXTURE = new Uint8Array(readFileSync(join(PACKAGE_ROOT, "fixtures/replay/episode.mcap")));
 
 const FIXTURE_DIGEST = `sha256:${createHash("sha256").update(FIXTURE).digest("hex")}`;
 

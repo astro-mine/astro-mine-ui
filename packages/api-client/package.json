@@ -30,14 +30,17 @@
   ],
   "scripts": {
     "build": "tsc -b",
-    "typecheck": "tsc -b && tsc -p tsconfig.test.json",
-    "test": "vitest run"
+    "typecheck": "tsc -b && tsc -p tsconfig.test.json"
   },
   "peerDependencies": {
-    "msw": "^2.0.0"
+    "msw": "^2.0.0",
+    "vitest": "^4.0.0"
   },
   "peerDependenciesMeta": {
     "msw": {
+      "optional": true
+    },
+    "vitest": {
       "optional": true
     }
   },

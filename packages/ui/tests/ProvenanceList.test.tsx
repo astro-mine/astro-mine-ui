@@ -4,8 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import { ProvenanceList, type ProvenanceEntry } from "../src/components/ProvenanceList.js";
 import { abbreviateDigest } from "../src/components/Digest.js";
-import { expectNoA11yViolations } from "./a11y.js";
-import { forEachColorScheme, renderInMode } from "./render.js";
+import { expectNoA11yViolations, forEachColorScheme, renderInMode } from "../src/testing.js";
 
 const WORLD = "sha256:be40f1c2d3e4a5b6978877665544332211ffeeddccbbaa99887766554433227d12";
 

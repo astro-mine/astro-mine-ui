@@ -16,152 +16,147 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# ONE JOB PER LANE (ui#8).
+#
+# This was a single `build` job with twenty-one steps. It was correct and it read badly: a red
+# check said "build", and finding out whether that meant a type error, a contract drift or a
+# colour-contrast regression meant opening the log. `ui#8`'s acceptance criterion is that "the lanes
+# run on pull requests and **each names itself in the checks list**".
+#
+# The cost is honest and worth stating: each job installs the workspace again, about a minute, and
+# they run in parallel so the wall clock is the slowest lane rather than the sum. What is NOT
+# duplicated is the build — `build` runs it once and uploads the export, and the three lanes that
+# need one download it. Rebuilding three times would have traded a legible failure for four minutes.
+
 jobs:
-  build:
+  # ── the fast, static lanes ────────────────────────────────────────────────────────────────────
+  static:
+    name: Static checks
     runs-on: ubuntu-latest
     steps:
-      # All three actions run on the Node 24 action runtime. The v4 majors targeted Node 20, which
-      # the runner already refused to honour — it forced them onto 24 and annotated every run,
-      # including the green ones. Bumping is what removes the warning before it becomes an error.
       - uses: actions/checkout@v7
-
-      # v6 is the first major that declares support for pnpm v11, which is what this workspace
-      # pins (pnpm@11.10.0, from package.json "packageManager"). The version is NOT repeated here:
-      # specifying it in both places is an error, not a belt-and-braces.
-      - name: Install pnpm
-        uses: pnpm/action-setup@v6
-
-      # The Node version comes from .nvmrc, and the floor is pnpm's, not ours: pnpm 11.10.0 declares
-      # engines.node >= 22.13 and crashes on Node 20 with "No such built-in module: node:sqlite".
-      #
-      # `cache: pnpm` is load-bearing and must stay explicit. setup-node v6 limited *automatic*
-      # caching to npm — with no `cache` input, pnpm and yarn are no longer cached at all. Naming it
-      # is the supported way to keep the pnpm store cached, and dropping this line would not fail
-      # the build; it would just make every run minutes slower, silently.
-      - name: Set up Node
-        uses: actions/setup-node@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: pnpm
-
-      # No registry credential: every @astro-mine dependency in this workspace is `workspace:*` and
-      # resolves locally. The .npmrc scope mapping exists for publishing and for consumers, not for
-      # this install. If a step here ever needs a token, that is a design change worth noticing.
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - run: pnpm install --frozen-lockfile
 
       # The one rule this workspace exists to hold (ARCHITECTURE.md). First, because it is fast and
       # because a layering break makes every later failure harder to read.
-      - name: Layering check
+      - name: Layering
         run: pnpm check:layering
-
-      # ...and the proof that the check above can actually fail. A gate nothing has been observed to
-      # reject is a gate nobody should trust.
-      - name: Layering check — its own failure modes
-        run: pnpm check:layering:test
-
-      # The property the generated client exists to establish: nobody has hand-copied the API's
-      # shapes back in, and no page opens its own request. Cheap, static, and the thing that decays.
-      - name: No hand-written API request or response types
+      - name: No hand-written API types
         run: pnpm check:api-types
 
-      - name: No hand-written API types — its own failure modes
-        run: pnpm check:api-types:test
+      # ...and the proof that each gate above can actually fail. A gate nothing has been observed to
+      # reject is a gate nobody should trust.
+      - name: Gate self-tests (layering, api-types, vocabularies, drift, bundle)
+        run: |
+          pnpm check:layering:test
+          pnpm check:api-types:test
+          pnpm check:vocabularies:test
+          pnpm check:api-drift:test
+          pnpm check:bundle:test
 
-      # THE CONTRACT LANE (ui#2). Two assertions in one script: the committed client is what the
-      # vendored document generates, and the vendored document is what astro-mine-api serves at
-      # HEAD. The second needs read access to that private repository — CORE_REPO_TOKEN is the
-      # org's private-repo read credential, the same secret name the API's own CI uses for the
-      # platform. Here it reads astro-mine-api rather than the platform; one name, one rotation.
-      #
-      # If the token is absent or expired this lane FAILS and says so in those words. It does not
-      # skip: a contract check that goes quiet when its credential lapses has stopped existing, and
-      # it would go quiet on exactly the day nobody is looking.
-      - name: Contract — the client is in step with the API
+      - name: Format
+        run: pnpm format:check
+      - name: Lint
+        run: pnpm lint
+      - name: Typecheck
+        run: pnpm typecheck
+
+  # ── the cross-repository contracts ────────────────────────────────────────────────────────────
+  #
+  # Both read a private sibling repository with CORE_REPO_TOKEN, and both FAIL rather than skip when
+  # the credential is absent: a compatibility check that goes quiet when its token lapses has stopped
+  # existing, and it goes quiet on exactly the day nobody is looking.
+  contract:
+    name: Contract (API + platform)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      # The committed client is what the vendored document generates, and the vendored document is
+      # what astro-mine-api serves at HEAD.
+      - name: The client is in step with the API
         env:
           CORE_REPO_TOKEN: ${{ secrets.CORE_REPO_TOKEN }}
         run: pnpm check:api-drift
 
-      # THE VENDORED-SCHEMA LANE (ui#6). `@astro-mine/view` is TypeScript and cannot import
-      # `astro_mine.core`, so it vendors Core's units schema and conformance vectors and generates
-      # `frames/generated/units.ts` from them. Vendored bytes with no guard are drift with extra
-      # steps — the copy was three Core tags stale when the guard was first written.
-      #
-      # Reads astro-mine-platform with CORE_REPO_TOKEN, the same credential the contract lane uses
-      # for astro-mine-api. Like that lane, it FAILS rather than skips when the token is absent: a
-      # compatibility check that goes quiet when its credential lapses has stopped existing.
+      # View vendors Core's units schema and conformance vectors; the inspector registry generates
+      # Core's PluginKind and Hub's container kinds. Both go stale silently without a guard.
       - name: Vendored Core schemas are in step with the platform
         env:
           CORE_REPO_TOKEN: ${{ secrets.CORE_REPO_TOKEN }}
         run: pnpm check:core-schema
-
-      # THE VOCABULARY LANE (ui#7). The artifact inspector registry resolves on two closed
-      # vocabularies that live in Python — Core's `PluginKind` and Hub's container kinds — and
-      # TypeScript cannot import either, so both are generated. Two assertions in one script: the
-      # committed TypeScript is what the pin generates (the hand-edit check), and the pinned members
-      # are still what the platform declares at its DEFAULT BRANCH HEAD (the drift check).
-      #
-      # HEAD rather than the pinned commit, deliberately, and it is the difference between a drift
-      # guard and a tamper check: a guard that only ever looks at the SHA it already knows cannot
-      # see the vocabulary move. The cost is real — a PluginKind added upstream turns this lane red
-      # on an unrelated pull request here — and that is the alarm working. `pnpm
-      # codegen:vocabularies --refresh` is the fix.
-      #
-      # Reads astro-mine-platform with CORE_REPO_TOKEN, and FAILS rather than skips when the token
-      # or the upstream file is absent, for the reason the two lanes above give.
       - name: Core and Hub vocabularies are in step with the platform
         env:
           CORE_REPO_TOKEN: ${{ secrets.CORE_REPO_TOKEN }}
         run: pnpm check:vocabularies
 
-      # ...and the proof that the check above can fail: a renamed class, a moved tuple, a block that
-      # parses to nothing, a member that is not a wire value, and each way two vocabularies disagree.
-      # The real tree is clean by construction — the pin is regenerated from the platform — so there
-      # is no live drift to demonstrate and the guard's whole value rests on failing when there is.
-      - name: Vocabulary drift check — its own failure modes
-        run: pnpm check:vocabularies:test
+  # ── the suite, with the floor ─────────────────────────────────────────────────────────────────
+  unit:
+    name: Unit & component
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
 
-      # THE CONTRAST LANE (ui#3). Every colour pairing the theme declares, measured against WCAG 2.1
-      # in BOTH schemes — and, in the same file's companion, proof that the check rejects a
-      # deliberately-bad pair. It runs as its own step rather than only inside `pnpm test` so a
-      # failure reads as what it is: a contrast regression, not "a test broke".
-      #
-      # "Where a package ships design tokens, the properties asserted about them are checked, not
-      # claimed" (conventions.md §11). An accessibility claim nobody runs is one that quietly stops
-      # being true.
+      # One Vitest over five projects, so the coverage floor is measured across the workspace rather
+      # than five times independently. `--coverage` enforces the thresholds in vitest.config.ts.
+      - name: Tests and coverage floor
+        run: pnpm test:coverage
+
+  # ── the design gates ──────────────────────────────────────────────────────────────────────────
+  #
+  # Their own lane rather than steps inside `unit`, because a failure here reads as what it is: a
+  # contrast or colour-vision regression, not "a test broke". Each carries its own companion proving
+  # it rejects a deliberately-bad pair.
+  design:
+    name: Contrast & colour vision
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
       - name: Contrast (WCAG 2.1 AA, light and dark)
         run: pnpm check:contrast
-
-      # THE COLOUR-VISION LANE (ui#4). The contrast lane asks whether a mark can be seen against the
-      # page; this asks whether two marks can be told apart — every pair of the categorical ramp, in
-      # both schemes, through normal vision and all three dichromacies. Neither implies the other:
-      # five colours can each clear 3:1 against white and be one colour to a reader with a
-      # red-green deficiency, which is roughly one man in twelve and a failure a chart legend cannot
-      # survive. Its own step, and its own companion proving the check rejects a bad pair.
       - name: Colour-vision separation (categorical palette, light and dark)
         run: pnpm check:palette
 
-      - name: Format check (prettier)
-        run: pnpm format:check
-
-      - name: Type-check (tsc, every package and the app)
-        run: pnpm typecheck
-
-      - name: Lint (eslint, 0 warnings)
-        run: pnpm lint
-
-      # Unit tests, from source — they need no build, so they run before it and fail faster. Today
-      # this is the api-client's 59; `pnpm -r` picks up each package as it gains a `test` script.
-      # ui#8 widens this lane into the component/coverage/a11y/e2e set the plan describes.
-      - name: Unit tests (vitest)
-        run: pnpm test
-
+  # ── the build, and the properties only the emitted bytes can show ─────────────────────────────
+  build:
+    name: Build & emitted bytes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
       - name: Build (packages, then the static export)
         run: pnpm build
 
-      # `output: 'export'` is the whole deployment story, so assert the export actually happened
-      # rather than trusting a zero exit code. A Next config change that quietly drops the export
-      # would otherwise pass CI and only surface at deploy time.
+      # `output: 'export'` is the whole deployment story, so assert the export happened rather than
+      # trusting a zero exit code.
       - name: The build produced a static export
         run: |
           test -f apps/console/out/index.html \
@@ -170,22 +165,17 @@ jobs:
 
       # The first paint must arrive styled. AppRouterCacheProvider flushes Emotion's styles into the
       # prerendered HTML; without it the export ships unstyled markup and flashes on hydrate. That is
-      # invisible to a type-check and to a passing build, so it is asserted on the emitted bytes.
+      # invisible to a type-check and to a passing build.
       - name: The static export carries its styles (no flash on first paint)
         run: |
           grep -q 'data-emotion=' apps/console/out/index.html \
             || { echo "::error::apps/console/out/index.html carries no Emotion styles — the MUI cache provider is not wired, and the export will flash unstyled on first paint"; exit 1; }
           echo "Emotion styles are inlined in the prerendered HTML."
 
-      # The third property that is invisible to a type-check, a passing build and a green jsdom
-      # suite: the pre-paint script and the theme's CSS must key off the SAME attribute (ui#3).
-      #
-      # They are set in different files — `InitColorSchemeScript` in the app's root layout, the
-      # selector in `packages/ui/src/theme.ts` — and neither can see the other. MUI's `"data"`
-      # shorthand generates `[data-dark]` while the script writes `data-mui-color-scheme="dark"`;
-      # everything still compiles, builds and tests green, and dark mode is dead in a browser. The
-      # only place the disagreement is observable is the emitted bytes, so that is where it is
-      # checked. jsdom cannot stand in for this: it does not populate the inline script's body.
+      # The pre-paint script and the theme's CSS must key off the SAME attribute. They are set in
+      # different files and neither can see the other; everything compiles, builds and tests green,
+      # and dark mode is dead in a browser. jsdom cannot stand in for it — it does not populate the
+      # inline script's body — so the emitted bytes are where it is checked.
       - name: The colour scheme applies before first paint (script and CSS agree)
         run: |
           grep -q 'data-mui-color-scheme' apps/console/out/index.html \
@@ -194,19 +184,9 @@ jobs:
             || { echo "::error::the dark colour scheme's CSS is not keyed to data-mui-color-scheme — theme.ts's colorSchemeSelector and InitColorSchemeScript's attribute disagree, and dark mode will never apply"; exit 1; }
           echo "The init script and the dark scheme's CSS agree on data-mui-color-scheme."
 
-      # The fourth property invisible to everything else: every route must actually prerender its own
-      # content (ui#5).
-      #
-      # `useSearchParams` opts its whole subtree out of prerendering, and identity lives in the query
-      # string (ui.md §5.1), so most pages here will reach for it. Called too high in a page, it
-      # empties that page out of the export — the HTML ships with the shell and nothing else, and the
-      # content appears only once JavaScript has run. Every lane stays green: it type-checks, it
-      # builds, the route is listed as static, and jsdom sees a fully rendered component because
-      # jsdom does not prerender at all.
-      #
-      # A page's `<h1>` is the cheapest thing that proves the page itself was rendered. This caught
-      # exactly one regression on the day it was written: the placeholder read its params at the top
-      # level, and all twenty routes exported an empty content region.
+      # `useSearchParams` called too high in a page empties that page out of the export — it ships
+      # with the shell and nothing else, and every other lane stays green. A page's `<h1>` is the
+      # cheapest thing that proves the page itself rendered.
       - name: Every route prerenders its own content
         run: |
           empty=""
@@ -219,17 +199,8 @@ jobs:
           fi
           echo "All $(find apps/console/out -name index.html | wc -l) routes prerender their own content."
 
-      # Cesium is client-only and code-split, asserted on the emitted bytes (ui#6).
-      #
-      # Two properties, both invisible everywhere else. The export must **serve Cesium's runtime
-      # assets itself** — Cesium fetches its workers and web assembly from CESIUM_BASE_URL rather
-      # than through the bundler, so a missing staging step is not a build error, it is a globe that
-      # silently fails to load in a deployment nobody can debug from here (CX-LOCAL).
-      #
-      # And the 4 MB Cesium chunk must be reachable **only at runtime**: `next/dynamic` with
-      # `ssr: false` is what keeps it out of every route's preload set, and a page that imported the
-      # globe statically would put it in the first paint of routes that never draw one. The build
-      # still succeeds either way, which is why this is checked here and not there.
+      # Cesium must be served by the deployment (it fetches workers and web assembly from
+      # CESIUM_BASE_URL, not through the bundler) and must be reachable only at runtime.
       - name: Cesium is served locally and loaded only on demand
         run: |
           for dir in Assets ThirdParty Widgets Workers; do
@@ -245,3 +216,97 @@ jobs:
             exit 1
           fi
           echo "Cesium staged locally ($(du -sh apps/console/out/cesium | cut -f1)); its chunk is runtime-only."
+
+      # Built once, used by three lanes. `include-hidden-files` matters: the export has none today,
+      # but the default silently drops dotfiles and a missing one would surface as a mystery 404.
+      - name: Upload the export
+        uses: actions/upload-artifact@v4
+        with:
+          name: static-export
+          path: apps/console/out
+          include-hidden-files: true
+          retention-days: 1
+
+  # ── the lanes that need a built export ────────────────────────────────────────────────────────
+  bundle:
+    name: Bundle budget
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@v4
+        with:
+          name: static-export
+          path: apps/console/out
+      - name: Per-route JavaScript is within budget
+        run: pnpm check:bundle
+
+  e2e:
+    name: E2E (built export)
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@v4
+        with:
+          name: static-export
+          path: apps/console/out
+
+      # `--with-deps` is what this workspace's own development environment cannot have: Chromium
+      # needs system libraries (libasound2 among them) that a WSL checkout does not ship, which is
+      # why a red browser lane *there* is environmental and why this job is the arbiter.
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Persona smoke journeys
+        run: pnpm e2e e2e/smoke.spec.ts
+
+      - name: Upload the report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report
+          retention-days: 7
+
+  a11y:
+    name: Accessibility (routes, both schemes)
+    needs: build
+    runs-on: ubuntu-latest
+    # NOT YET A GATE, and this is the one place that is written down as a workflow setting rather
+    # than as prose. `ui#8` ships the lane runnable; **Wave 30 removes this line** once there are
+    # real pages behind the routes and any finding it reports has been fixed rather than baselined.
+    # Until then it reports, in colour, on every pull request — which is how the findings get known
+    # before they are enforced.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@v4
+        with:
+          name: static-export
+          path: apps/console/out
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      # A real browser, so `color-contrast` can actually run — the rule the jsdom lane must disable
+      # because it samples pixels and jsdom has no paint engine.
+      - name: axe over every route, light and dark
+        run: pnpm e2e:a11y

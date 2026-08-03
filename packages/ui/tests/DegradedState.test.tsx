@@ -3,8 +3,7 @@
 import { describe, expect, it } from "vitest";
 
 import { DegradedState } from "../src/components/DegradedState.js";
-import { expectNoA11yViolations } from "./a11y.js";
-import { forEachColorScheme, renderInMode } from "./render.js";
+import { expectNoA11yViolations, forEachColorScheme, renderInMode } from "../src/testing.js";
 
 describe("what it says", () => {
   it("carries a reason AND a remediation", () => {
