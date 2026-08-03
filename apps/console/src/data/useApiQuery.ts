@@ -67,7 +67,7 @@ type Settled<T> =
   | { readonly status: "failed"; readonly failure: Failure }
   | { readonly status: "ready"; readonly data: T };
 
-export interface ApiQueryOptions {
+export interface ApiQueryOptions<T> {
   /**
    * Whether to run at all. Defaults to `true`.
    *
@@ -76,6 +76,35 @@ export interface ApiQueryOptions {
    * would turn a legitimately empty page into a 404 the reader has to interpret.
    */
   readonly enabled?: boolean;
+  /**
+   * Re-run this often, in milliseconds. Omit — or pass `undefined` — for a one-shot read.
+   *
+   * **The interval is the caller's, and stopping is the caller's too.** A job that has reached a
+   * terminal state must stop being polled, and only the page knows what terminal means for its
+   * route; passing `undefined` once it does is how that is expressed. The timer is cleared on
+   * unmount and whenever the subject changes, so ui#14's *"polling stops when the page is left; no
+   * request outlives its page"* holds by construction rather than by a page remembering to tear
+   * down its own timer.
+   *
+   * **A poll does not flash a spinner.** The tick is deliberately outside the request's signature,
+   * so a refresh replaces the settled value in place; including it would make every poll look like
+   * a fresh load and the panel would blink once a second.
+   */
+  readonly refreshMs?: number;
+  /**
+   * Keep polling only while this says so. Evaluated against the most recent successful answer.
+   *
+   * ```ts
+   * { refreshMs: 3000, refreshWhile: (job) => !TERMINAL.has(job.status) }
+   * ```
+   *
+   * **The stopping condition belongs here rather than in the page**, because a page that computes
+   * it has to feed its own result back into its own options — which is either a render-phase
+   * `setState` or a second copy of the same query. Neither is worth it for a boolean the hook can
+   * see. A page that keeps polling a job that finished twenty minutes ago is a page nobody notices
+   * is spending a request every three seconds.
+   */
+  readonly refreshWhile?: (data: T) => boolean;
 }
 
 /** React's own dependency comparison: same length, `Object.is` element-wise. */
@@ -100,14 +129,20 @@ function sameSignature(a: DependencyList, b: DependencyList): boolean {
 export function useApiQuery<T>(
   run: (client: ApiOperations, signal: AbortSignal) => Promise<T>,
   deps: DependencyList,
-  options?: ApiQueryOptions,
+  options?: ApiQueryOptions<T>,
 ): ApiQuery<T> {
   const { state: config, client } = useRuntimeConfig();
   const enabled = options?.enabled ?? true;
+  const refreshMs = options?.refreshMs;
 
   // Everything that identifies *this* request. A change to any of it makes whatever is stored the
   // answer to a different question.
   const signature: DependencyList = [client, config, enabled, ...deps];
+
+  // The poll counter. **Outside the signature on purpose** — a tick asks the same question again,
+  // so the previous answer stays on screen until the new one arrives rather than being discarded
+  // into a spinner once per interval.
+  const [tick, setTick] = useState(0);
 
   const [tracked, setTracked] = useState<{
     signature: DependencyList;
@@ -119,6 +154,27 @@ export function useApiQuery<T>(
   // or the render-phase state write that would earn it.
   const settled =
     tracked !== null && sameSignature(tracked.signature, signature) ? tracked.settled : null;
+
+  // Whether there is any point asking again. Computed from the answer already in hand, as a plain
+  // boolean so the effect below depends on the *decision* rather than on a value whose identity
+  // changes every poll.
+  const keepPolling =
+    refreshMs !== undefined &&
+    enabled &&
+    client !== undefined &&
+    (options?.refreshWhile === undefined ||
+      settled === null ||
+      settled.status !== "ready" ||
+      options.refreshWhile(settled.data));
+
+  useEffect(() => {
+    if (!keepPolling || refreshMs === undefined) return;
+    const timer = setInterval(() => setTick((n) => n + 1), refreshMs);
+    // Cleared on unmount, on any change to the subject, and the moment `keepPolling` goes false.
+    // This is the whole of "no request outlives its page": the timer stops, and the in-flight
+    // request the effect below started is aborted by its own cleanup.
+    return () => clearInterval(timer);
+  }, [keepPolling, refreshMs]);
 
   // The latest callback, without making it a dependency.
   //
@@ -158,9 +214,10 @@ export function useApiQuery<T>(
     };
     // `run` is intentionally absent — see the doc comment. `signature` is spread rather than passed
     // as an array so the list has a constant length between renders, which React requires; it is
-    // captured by the closure above at the same values.
+    // captured by the closure above at the same values. `tick` is a dependency here and *not* part
+    // of the signature: it re-runs the request without invalidating the answer already on screen.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, signature);
+  }, [...signature, tick]);
 
   if (!enabled) return { status: "idle" };
   // Still reading `config.json`. Not "unconfigured" — saying so here is how a correctly configured

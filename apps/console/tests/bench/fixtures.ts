@@ -7,6 +7,7 @@
 // and no value at all (the metric did not apply).
 
 import type {
+  BenchJobRecord,
   MetricScore,
   ProvenanceBundle,
   Submission,
@@ -112,6 +113,21 @@ export const provenance = (over: Partial<ProvenanceBundle> = {}): ProvenanceBund
   scorecard_hash: "sha256:3333333333333333333333333333333333333333333333333333333333333333",
   source: "hub",
   source_digest: "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+  ...over,
+});
+
+/**
+ * What `POST /bench/submissions/hub` answers with.
+ *
+ * **A job, not a submission** — the Hub route has to resolve the artifact from the registry and
+ * execute it, so it hands back something to follow. The direct route answers a scored `Submission`.
+ * Two shapes, because they are two different things.
+ */
+export const jobRecord = (over: Partial<BenchJobRecord> = {}): BenchJobRecord => ({
+  job_id: "job-1",
+  status: "queued",
+  detail: null,
+  result_id: null,
   ...over,
 });
 

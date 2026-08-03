@@ -33,17 +33,29 @@ export type ApiAction<T> =
   | { readonly status: "done"; readonly data: T }
   | { readonly status: "failed"; readonly failure: Failure };
 
+/**
+ * What `invoke` resolves with.
+ *
+ * **`ok` rather than "the result, or `undefined` on failure".** The shorter contract was here first
+ * and it conflates two different things the moment a route answers with no body: `decode` returns
+ * `undefined` for a 204 or an empty 200, so a *successful* write becomes indistinguishable from a
+ * refusal, and a caller chaining on it treats a completed action as a failure. No route in today's
+ * document does that — `DELETE /bench/submissions/{id}` answers with the retracted `Submission` —
+ * which is precisely why it is worth fixing now: the ambiguity is invisible until the first 204 is
+ * added, and by then several call sites depend on the wrong reading. A flag costs one field.
+ */
+export type ApiActionResult<T> = { readonly ok: true; readonly data: T } | { readonly ok: false };
+
 export interface ApiActionHandle<A extends readonly unknown[], T> {
   readonly state: ApiAction<T>;
   /**
    * Run it.
    *
-   * Resolves with the result, or `undefined` if the call failed or there was no client — the
-   * failure is in `state`, and a caller that only wants to chain on success can check for
-   * `undefined` without a second try/catch. It never rejects: a write that throws out of an event
-   * handler is an unhandled rejection in the console and nothing on the screen.
+   * Never rejects: a write that throws out of an event handler is an unhandled rejection in the
+   * console and nothing on the screen. The failure is in `state`; the returned {@link
+   * ApiActionResult} is for a caller that wants to chain on success.
    */
-  readonly invoke: (...args: A) => Promise<T | undefined>;
+  readonly invoke: (...args: A) => Promise<ApiActionResult<T>>;
   /** Back to `idle`. For a form that clears its own outcome before being used again. */
   readonly reset: () => void;
   /**
@@ -95,20 +107,20 @@ export function useApiAction<A extends readonly unknown[], T>(
   // control to enable and then clicked it hit that window intermittently and reported the write as
   // never having happened. An identity that changes when the endpoint changes is the honest one.
   const invoke = useCallback(
-    async (...args: A): Promise<T | undefined> => {
-      if (client === undefined) return undefined;
+    async (...args: A): Promise<ApiActionResult<T>> => {
+      if (client === undefined) return { ok: false };
 
       setState({ status: "pending" });
       try {
         const data = await runRef.current(client, ...args);
         if (live.current) setState({ status: "done", data });
-        return data;
+        return { ok: true, data };
       } catch (error: unknown) {
         // An abort here is the component going away mid-write. There is nobody to tell.
         if (live.current && !isAbortError(error)) {
           setState({ status: "failed", failure: failureOf(error) });
         }
-        return undefined;
+        return { ok: false };
       }
     },
     [client],
