@@ -30,6 +30,7 @@ import { GlobeContext } from "./context";
 import type { GlobeContextValue } from "./context";
 import { GlobeStatus } from "./GlobeStatus";
 import { assertLunarRadiusAgreement, configureBodyEllipsoid } from "./ellipsoid";
+import { fillHost } from "./fillHost";
 import { INITIALIZING } from "./status";
 import type { GlobeStatus as GlobeStatusValue } from "./status";
 import { useResolvedWorld, useWorldTerrain } from "./useWorldTerrain";
@@ -127,11 +128,15 @@ export function GlobeScene({
       terrainProvider: new EllipsoidTerrainProvider({ ellipsoid }),
     });
 
-    // Cesium sizes its canvas from `widgets.css`, which a library must not inject globally. These
-    // three lines make the widget usable when a host has not imported that stylesheet.
-    viewer.canvas.style.width = "100%";
-    viewer.canvas.style.height = "100%";
-    viewer.canvas.style.display = "block";
+    // Cesium sizes its canvas — AND the three elements it nests that canvas inside — from
+    // `widgets.css`, which a library must not inject globally. Sizing only the canvas was not
+    // enough: a percentage height resolves against the parent, and those wrappers are `height:
+    // auto` with no stylesheet, so the canvas fell back to its attribute height and the globe
+    // overflowed its container. See `fillHost` for why that stayed invisible until `ui#7`.
+    fillHost(viewer.canvas, host);
+    // The canvas has just changed size. Cesium's render loop notices on its own, but only on the
+    // next tick, and the first frame is the one a reader sees.
+    viewer.resize();
 
     applyBodyAppearance(viewer.scene.globe);
 

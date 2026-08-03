@@ -39,7 +39,15 @@ export function EmptyState({ title, hint, action }: EmptyStateProps) {
         color: "text.secondary",
       }}
     >
-      <Typography variant="subtitle1" sx={{ color: "text.primary", fontWeight: 600 }}>
+      {/* `component="p"`, and it is load-bearing (ui#7). MUI maps `subtitle1` to `<h6>`, so without
+          this the title is a level-six heading — and the first component to put a real `<h2>` above
+          it (an inspector panel) makes that a `heading-order` violation, four levels skipped. This
+          package's own tests could not see it: in isolation the `<h6>` is the only heading on the
+          page and axe's rule needs a predecessor to compare against. The rest of the kit already
+          agrees — `DegradedState` and `StandInBanner` both title through `AlertTitle`, which renders
+          a `<div>` — so this makes `EmptyState` consistent rather than special. The region is
+          already announced: it carries `role="status"`. */}
+      <Typography variant="subtitle1" component="p" sx={{ color: "text.primary", fontWeight: 600 }}>
         {title}
       </Typography>
       {hint === undefined ? null : (

@@ -95,6 +95,32 @@ jobs:
           CORE_REPO_TOKEN: ${{ secrets.CORE_REPO_TOKEN }}
         run: pnpm check:core-schema
 
+      # THE VOCABULARY LANE (ui#7). The artifact inspector registry resolves on two closed
+      # vocabularies that live in Python — Core's `PluginKind` and Hub's container kinds — and
+      # TypeScript cannot import either, so both are generated. Two assertions in one script: the
+      # committed TypeScript is what the pin generates (the hand-edit check), and the pinned members
+      # are still what the platform declares at its DEFAULT BRANCH HEAD (the drift check).
+      #
+      # HEAD rather than the pinned commit, deliberately, and it is the difference between a drift
+      # guard and a tamper check: a guard that only ever looks at the SHA it already knows cannot
+      # see the vocabulary move. The cost is real — a PluginKind added upstream turns this lane red
+      # on an unrelated pull request here — and that is the alarm working. `pnpm
+      # codegen:vocabularies --refresh` is the fix.
+      #
+      # Reads astro-mine-platform with CORE_REPO_TOKEN, and FAILS rather than skips when the token
+      # or the upstream file is absent, for the reason the two lanes above give.
+      - name: Core and Hub vocabularies are in step with the platform
+        env:
+          CORE_REPO_TOKEN: ${{ secrets.CORE_REPO_TOKEN }}
+        run: pnpm check:vocabularies
+
+      # ...and the proof that the check above can fail: a renamed class, a moved tuple, a block that
+      # parses to nothing, a member that is not a wire value, and each way two vocabularies disagree.
+      # The real tree is clean by construction — the pin is regenerated from the platform — so there
+      # is no live drift to demonstrate and the guard's whole value rests on failing when there is.
+      - name: Vocabulary drift check — its own failure modes
+        run: pnpm check:vocabularies:test
+
       # THE CONTRAST LANE (ui#3). Every colour pairing the theme declares, measured against WCAG 2.1
       # in BOTH schemes — and, in the same file's companion, proof that the check rejects a
       # deliberately-bad pair. It runs as its own step rather than only inside `pnpm test` so a

@@ -1,0 +1,36 @@
+{
+  "_comment": "GENERATED PIN — the platform commit the inspector registry's vocabularies were read from, and the members they had. Written by `pnpm codegen:vocabularies --refresh`; checked by `pnpm check:vocabularies` (CI, networked, CORE_REPO_TOKEN), which compares these members against the platform's DEFAULT BRANCH HEAD, not against this commit — pinning the ref would make the guard blind to the vocabulary actually moving, which is the only thing it is for. The members are vendored rather than the modules: _oci.py changes constantly for reasons unrelated to ARTIFACT_KINDS, and a guard that goes red on every unrelated edit is a guard somebody mutes. `src/generated/vocabularies.ts` is generated FROM this file; never hand-edit either. See conventions.md §3.1 (cross-language and vendored consumers).",
+  "repo": "astro-mine/astro-mine-platform",
+  "commit": "dc2069c5b895ff81cc13a5cca992668fc2f7dcf2",
+  "vocabularies": {
+    "PluginKind": {
+      "source": "src/astro_mine/core/registry/enums.py",
+      "symbol": "PluginKind",
+      "form": "str-enum",
+      "members": [
+        "regime_engine",
+        "sensor_model",
+        "coupling_scheme",
+        "world_provider",
+        "body_pack",
+        "field_model",
+        "resource_field_backend",
+        "observation_model",
+        "prior_recipe",
+        "info_gain_objective",
+        "comms_model",
+        "asset",
+        "policy",
+        "metric",
+        "design",
+        "campaign"
+      ]
+    },
+    "ArtifactKind": {
+      "source": "src/astro_mine/hub/registry/_oci.py",
+      "symbol": "ARTIFACT_KINDS",
+      "form": "str-tuple",
+      "members": ["policy", "world", "asset", "surrogate", "plugin", "schema", "design", "campaign"]
+    }
+  }
+}

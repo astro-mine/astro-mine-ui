@@ -29,15 +29,23 @@ const APP_DIR = fileURLToPath(new URL("../src/app", import.meta.url));
 /**
  * Routes that are deliberately not in the navigation.
  *
- * **One entry, with a reason and an expiry — not a hole in the check.** `ui#6` needs a globe mounted
- * somewhere to prove Cesium renders in the built export, and no real page mounts one until `ui#17`.
- * A scaffold is the honest way to get there, and an unlisted scaffold is better than a nav entry
- * pointing at a development page.
+ * **Each entry carries a reason and an expiry — this is not a hole in the check.** An unlisted
+ * scaffold is better than a nav entry pointing at a development page, and better than no way at all
+ * to see a behaviour render.
  *
- * **Delete this list, and the route, when `ui#17` lands.** A named exception that nobody removes
- * becomes the precedent for the next one.
+ * - `/dev/globe` (`ui#6`) — a globe has to mount *somewhere* to prove Cesium renders in the built
+ *   export, and no real page mounts one until `ui#17`. **Delete when `ui#17` lands.**
+ * - `/dev/inspector` (`ui#7`) — the artifact inspector registry's most user-visible behaviour is
+ *   what a reader meets when *nothing* claims their artifact, or when two things claim it equally.
+ *   No page renders a panel until `ui#10`, so without this those states could only be asserted in
+ *   jsdom. **Delete when `ui#10` lands.**
+ *
+ * **Two is a pattern, and the pattern is the thing to watch.** Each of these is honest on its own;
+ * a third would be a sign that scaffolds are how this application gets built, rather than how a
+ * behaviour is checked once before a real page exists. An exception nobody removes becomes the
+ * precedent for the next one.
  */
-const UNLISTED_ROUTES: readonly string[] = ["/dev/globe"];
+const UNLISTED_ROUTES: readonly string[] = ["/dev/globe", "/dev/inspector"];
 
 /** Every route the filesystem actually serves, derived from where the `page.tsx` files are. */
 function routesOnDisk(dir = APP_DIR, prefix = ""): string[] {

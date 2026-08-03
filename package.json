@@ -30,6 +30,10 @@
     "check:api-types:test": "node --test scripts/check-no-handwritten-api-types.test.mjs",
     "check:core-schema": "node scripts/check-core-schema.mjs",
     "codegen:units": "node scripts/codegen-units.mjs",
+    "codegen:vocabularies": "node scripts/codegen-vocabularies.mjs",
+    "check:vocabularies": "node scripts/check-vocabularies.mjs",
+    "check:vocabularies:local": "node scripts/check-vocabularies.mjs --local",
+    "check:vocabularies:test": "node --test scripts/check-vocabularies.test.mjs",
     "cesium:assets": "pnpm --filter @astro-mine/console run cesium:assets",
     "check:contrast": "pnpm --filter @astro-mine/ui test:contrast",
     "check:palette": "pnpm --filter @astro-mine/ui test:palette"
