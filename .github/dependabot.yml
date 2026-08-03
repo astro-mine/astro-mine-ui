@@ -52,6 +52,22 @@ updates:
   # ---- GitHub Actions -------------------------------------------------------
   # The lane that would have raised #26 on its own. Actions are grouped without exception: they are
   # few, and a bump is either safe or immediately red in the same run that proposes it.
+  # ---- GitHub Actions -------------------------------------------------------
+  # **The workflow floats major tags on purpose** — `actions/checkout@v7`,
+  # `pnpm/action-setup@v6`, and so on — so a patch release arrives without a pull request and this
+  # ecosystem only speaks when a *major* needs a human decision.
+  #
+  # Dependabot will occasionally propose narrowing one of those to an exact patch (`@v6` → `@v6.0.9`,
+  # PR #39). **Close those.** Taken alone such a PR buys nothing: `@v6` is already running 6.0.9. It
+  # would leave one action of eight pinned differently from the rest, which is worse than either
+  # consistent choice, and it commits the repository to a pull request per patch release for that one
+  # action forever.
+  #
+  # The alternative worth knowing about, if this is ever revisited: pin **every** action to a commit
+  # SHA rather than a tag. That is the real supply-chain position — a tag is mutable and can be
+  # re-pointed by whoever controls the action's repository, a SHA cannot — and it is what a hardened
+  # workflow does. It is a deliberate policy change with real churn, not something to arrive at one
+  # merged Dependabot PR at a time.
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
