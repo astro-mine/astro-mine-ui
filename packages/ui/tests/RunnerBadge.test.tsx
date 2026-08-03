@@ -3,8 +3,7 @@
 import { describe, expect, it } from "vitest";
 
 import { RunnerBadge } from "../src/components/RunnerBadge.js";
-import { expectNoA11yViolations } from "./a11y.js";
-import { forEachColorScheme, renderInMode } from "./render.js";
+import { expectNoA11yViolations, forEachColorScheme, renderInMode } from "../src/testing.js";
 
 describe("a stand-in", () => {
   it("is labelled in the row itself, not in a footnote", () => {

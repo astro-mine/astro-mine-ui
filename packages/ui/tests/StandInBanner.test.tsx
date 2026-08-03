@@ -6,8 +6,7 @@
 import { describe, expect, it } from "vitest";
 
 import { StandInBanner } from "../src/components/StandInBanner.js";
-import { expectNoA11yViolations } from "./a11y.js";
-import { forEachColorScheme, renderInMode } from "./render.js";
+import { expectNoA11yViolations, forEachColorScheme, renderInMode } from "../src/testing.js";
 
 describe("the label", () => {
   it("cannot be rendered unlabelled — the title is required and always shown", () => {

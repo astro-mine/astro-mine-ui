@@ -9,8 +9,7 @@ import { describe, expect, it } from "vitest";
 
 import { BarChart, describeBars, niceBound, valueDomain } from "../../src/charts/BarChart.js";
 import { PALETTES } from "../../src/theme.js";
-import { expectNoA11yViolations } from "../a11y.js";
-import { forEachColorScheme, renderInMode } from "../render.js";
+import { expectNoA11yViolations, forEachColorScheme, renderInMode } from "../../src/testing.js";
 import { LEADERBOARD } from "./fixtures.js";
 
 const ready = { status: "ready", data: LEADERBOARD } as const;

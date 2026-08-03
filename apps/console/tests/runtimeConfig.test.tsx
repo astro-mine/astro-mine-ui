@@ -13,8 +13,7 @@ import { AppShell } from "@/shell/AppShell";
 import { NAV_ENTRIES } from "@/shell/navigation";
 import { RuntimeConfigProvider } from "@/shell/runtimeConfig";
 
-import { expectNoA11yViolations } from "./a11y";
-import { forEachColorScheme, renderShell } from "./render";
+import { expectNoA11yViolations, forEachColorScheme, renderLight } from "@astro-mine/ui/testing";
 
 /** A loader that answers with one state, standing in for `config.json` at whatever it says. */
 const loaderFor = (state: RuntimeConfigState) => vi.fn(async () => state);
@@ -46,7 +45,7 @@ const app = (state: RuntimeConfigState) => (
 
 describe("with no API configured", () => {
   it("says what is missing and what to do about it", async () => {
-    renderShell(app(UNCONFIGURED));
+    renderLight(app(UNCONFIGURED));
 
     const notice = await screen.findByRole("status");
     expect(within(notice).getByText("No API is configured")).toBeInTheDocument();
@@ -55,7 +54,7 @@ describe("with no API configured", () => {
   });
 
   it("keeps the whole navigation — a missing backend is a state, not a missing feature", async () => {
-    renderShell(app(UNCONFIGURED));
+    renderLight(app(UNCONFIGURED));
     await screen.findByRole("status");
 
     const nav = screen.getByRole("navigation", { name: "Sections" });
@@ -70,13 +69,13 @@ describe("with no API configured", () => {
   it("still renders the page, rather than replacing it", async () => {
     // Some pages need no API at all. Replacing them with an apology would be a lie about what this
     // deployment can do.
-    renderShell(app(UNCONFIGURED));
+    renderLight(app(UNCONFIGURED));
     await screen.findByRole("status");
     expect(screen.getByRole("heading", { name: "Page content" })).toBeInTheDocument();
   });
 
   it("leaves search and the colour toggle working", async () => {
-    renderShell(app(UNCONFIGURED));
+    renderLight(app(UNCONFIGURED));
     await screen.findByRole("status");
     expect(screen.getByRole("searchbox", { name: "Search the registry" })).toBeEnabled();
     expect(screen.getByRole("group", { name: "Colour mode" })).toBeInTheDocument();
@@ -85,7 +84,7 @@ describe("with no API configured", () => {
 
 describe("with a configuration that cannot be used", () => {
   it("distinguishes an unusable file from an absent one — the fixes differ", async () => {
-    renderShell(app(INVALID));
+    renderLight(app(INVALID));
 
     const notice = await screen.findByRole("status");
     expect(within(notice).getByText("The API configuration cannot be used")).toBeInTheDocument();
@@ -97,7 +96,7 @@ describe("with a configuration that cannot be used", () => {
 
 describe("with an API configured", () => {
   it("says nothing at all", async () => {
-    const { container } = renderShell(app(CONFIGURED));
+    const { container } = renderLight(app(CONFIGURED));
     await waitFor(() => {
       expect(container.querySelector("[role='status']")).toBeNull();
     });
@@ -108,7 +107,7 @@ describe("with an API configured", () => {
     // "Loading" and "there is nothing" are different states, and collapsing them makes a correctly
     // configured deployment blame itself on every cold load.
     const never = vi.fn(() => new Promise<RuntimeConfigState>(() => {}));
-    renderShell(
+    renderLight(
       <RuntimeConfigProvider load={never}>
         <AppShell>
           <h1>Page content</h1>

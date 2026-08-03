@@ -1,7 +1,7 @@
 {
   "name": "@astro-mine/ui",
   "version": "0.0.0",
-  "description": "The Astro-Mine design system — the Material UI theme (light and dark), the honesty kit, and every chart the application renders. No raw chart primitive leaves this package.",
+  "description": "The Astro-Mine design system \u2014 the Material UI theme (light and dark), the honesty kit, and every chart the application renders. No raw chart primitive leaves this package.",
   "license": "Apache-2.0",
   "type": "module",
   "repository": {
@@ -19,6 +19,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./testing": {
+      "types": "./dist/testing.d.ts",
+      "import": "./dist/testing.js"
     }
   },
   "files": [
@@ -27,7 +31,6 @@
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc -b && tsc -p tsconfig.test.json",
-    "test": "vitest run",
     "test:contrast": "vitest run tests/contrast.test.ts tests/contrast-gate.test.ts",
     "test:palette": "vitest run tests/palette.test.ts tests/palette-gate.test.ts"
   },
@@ -39,7 +42,10 @@
     "@emotion/styled": "^11.14.0",
     "@mui/material": "^9.0.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "@testing-library/react": "^16.0.0",
+    "axe-core": "^4.0.0",
+    "vitest": "^4.0.0"
   },
   "devDependencies": {
     "@emotion/react": "^11.14.0",
@@ -51,5 +57,16 @@
     "axe-core": "^4.12.1",
     "jsdom": "^30.0.1",
     "vitest": "^4.1.10"
+  },
+  "peerDependenciesMeta": {
+    "@testing-library/react": {
+      "optional": true
+    },
+    "axe-core": {
+      "optional": true
+    },
+    "vitest": {
+      "optional": true
+    }
   }
 }

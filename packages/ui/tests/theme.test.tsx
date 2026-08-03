@@ -7,8 +7,7 @@ import { describe, expect, it } from "vitest";
 
 import { ColorModeToggle } from "../src/ColorModeToggle.js";
 import { COLOR_SCHEME_ATTRIBUTE, COLOR_SCHEMES, PALETTES, theme } from "../src/theme.js";
-import { expectNoA11yViolations } from "./a11y.js";
-import { forEachColorScheme } from "./render.js";
+import { expectNoA11yViolations, forEachColorScheme } from "../src/testing.js";
 
 /** Renders the toggle plus a readout of the mode the provider believes is in effect. */
 function ModeHarness() {

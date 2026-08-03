@@ -9,8 +9,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { describePoint, ScatterChart } from "../../src/charts/ScatterChart.js";
-import { expectNoA11yViolations } from "../a11y.js";
-import { forEachColorScheme, renderInMode } from "../render.js";
+import { expectNoA11yViolations, forEachColorScheme, renderInMode } from "../../src/testing.js";
 import { PARETO } from "./fixtures.js";
 
 const ready = { status: "ready", data: PARETO } as const;

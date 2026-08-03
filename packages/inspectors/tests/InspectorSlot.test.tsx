@@ -7,7 +7,7 @@ import { screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { InspectorSlot, createInspectorRegistry, defaultInspectorRegistry } from "../src/index.js";
-import { expectNoA11yViolations, forEachColorScheme, renderInMode } from "./render.js";
+import { expectNoA11yViolations, forEachColorScheme, renderInMode } from "@astro-mine/ui/testing";
 import { subject, tiedAlpha, tiedBeta, worldsFieldModel } from "./fixtures.js";
 
 describe("a resolved subject", () => {

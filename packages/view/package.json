@@ -1,7 +1,7 @@
 {
   "name": "@astro-mine/view",
   "version": "0.0.0",
-  "description": "The visualization library — the Cesium globe, world terrain from published bundles, asset models, swarm and replay layers, the MCAP replay source, the timeline clock, and the frames layer. Client-only.",
+  "description": "The visualization library \u2014 the Cesium globe, world terrain from published bundles, asset models, swarm and replay layers, the MCAP replay source, the timeline clock, and the frames layer. Client-only.",
   "license": "Apache-2.0",
   "type": "module",
   "sideEffects": false,
@@ -27,8 +27,7 @@
   ],
   "scripts": {
     "build": "tsc -b",
-    "typecheck": "tsc -b && tsc -p tsconfig.test.json",
-    "test": "vitest run"
+    "typecheck": "tsc -b && tsc -p tsconfig.test.json"
   },
   "dependencies": {
     "@mcap/core": "^2.2.1",

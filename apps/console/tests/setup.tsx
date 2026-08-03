@@ -2,6 +2,7 @@
 
 import "@testing-library/jest-dom/vitest";
 import { cleanup } from "@testing-library/react";
+import { resetColorScheme } from "@astro-mine/ui/testing";
 import type { AnchorHTMLAttributes, ReactNode } from "react";
 import { afterEach, vi } from "vitest";
 
@@ -54,11 +55,5 @@ if (typeof window !== "undefined" && window.matchMedia === undefined) {
 afterEach(() => {
   cleanup();
   resetRouter();
-
-  if (typeof window === "undefined") return;
-
-  // The colour mode is *persisted* by design, which in a test file means one test's choice leaks
-  // into the next one's `defaultMode` and silently wins.
-  window.localStorage.clear();
-  document.documentElement.removeAttribute("data-mui-color-scheme");
+  resetColorScheme();
 });

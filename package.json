@@ -2,7 +2,7 @@
   "name": "astro-mine-ui-workspace",
   "private": true,
   "version": "0.0.0",
-  "description": "Astro-Mine-UI — the front-end distribution. This is the pnpm workspace root: it publishes nothing. The Next.js application lives in apps/console and the shipped @astro-mine packages in packages/.",
+  "description": "Astro-Mine-UI \u2014 the front-end distribution. This is the pnpm workspace root: it publishes nothing. The Next.js application lives in apps/console and the shipped @astro-mine packages in packages/.",
   "license": "Apache-2.0",
   "type": "module",
   "repository": {
@@ -17,7 +17,7 @@
     "dev": "pnpm --filter @astro-mine/console dev",
     "build": "pnpm -r run build",
     "typecheck": "pnpm -r run typecheck",
-    "test": "pnpm -r run test",
+    "test": "vitest run",
     "lint": "eslint . --max-warnings 0",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -35,8 +35,9 @@
     "check:vocabularies:local": "node scripts/check-vocabularies.mjs --local",
     "check:vocabularies:test": "node --test scripts/check-vocabularies.test.mjs",
     "cesium:assets": "pnpm --filter @astro-mine/console run cesium:assets",
-    "check:contrast": "pnpm --filter @astro-mine/ui test:contrast",
-    "check:palette": "pnpm --filter @astro-mine/ui test:palette"
+    "check:contrast": "vitest run --project ui tests/contrast.test.ts tests/contrast-gate.test.ts",
+    "check:palette": "vitest run --project ui tests/palette.test.ts tests/palette-gate.test.ts",
+    "test:coverage": "vitest run --coverage"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.0",
@@ -52,6 +53,8 @@
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.65.0"
+    "typescript-eslint": "^8.65.0",
+    "@vitest/coverage-v8": "^4.1.10",
+    "vitest": "^4.1.10"
   }
 }
