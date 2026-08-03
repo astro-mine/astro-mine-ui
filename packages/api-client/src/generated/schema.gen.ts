@@ -780,17 +780,27 @@ export interface components {
   schemas: {
     /**
      * ArtifactDetail
-     * @description A single artifact: its projection, its full catalog record, and what is attested.
+     * @description A single artifact: its projection, its catalog record, its manifest attributes, and what is
+     *     attested.
      *
      *     ``attestations`` names the attestation *types present in the registry* — it is emphatically not
      *     a verification verdict, and the front end is required to say so in those words (ui.md §7).
      *     Empty when the deployment has no registry to ask.
+     *
+     *     ``attributes`` is the Core manifest's open map, served **verbatim** and kept out of ``record``
+     *     because ``record`` is Core's ``CatalogRecord`` projection and that projection deliberately drops
+     *     it. It is unbounded and unschematized by design — read a key only if you know the producer
+     *     stamps it, and never assume one is present.
      */
     ArtifactDetail: {
       /** Artifact Kind */
       artifact_kind?: string | null;
       /** Attestations */
       attestations?: string[];
+      /** Attributes */
+      attributes?: {
+        [key: string]: unknown;
+      };
       /**
        * Deprecated
        * @default false

@@ -45,11 +45,14 @@ export interface InspectorSubject {
   /**
    * `manifest.attributes` — the open map Core deliberately does not schematize.
    *
-   * The last-resort resolution key. **Empty in practice today:** the artifact route returns Core's
-   * `CatalogRecord` projection, and `PluginManifest.to_catalog_record()` drops `attributes`, so
-   * nothing reaches the browser to predicate on until the API projects it. The key is specified and
-   * tested here because `ui.md` §6 makes it part of the normative rule; a page must not invent
-   * values for it.
+   * The last-resort resolution key. It was empty in practice when `ui#7` shipped the rule — the
+   * artifact route returned only Core's `CatalogRecord` projection, and
+   * `PluginManifest.to_catalog_record()` drops `attributes` — so the key was specified and tested
+   * with nothing able to reach it. `astro-mine-api#10` closed that: `ArtifactDetail.attributes`
+   * now carries the map, served verbatim.
+   *
+   * **Unbounded and unschematized**, which is what makes it the *last* resort: read a key only if
+   * you know the producer stamps it, never assume one is present, and never invent a value for it.
    */
   readonly attributes: Readonly<Record<string, unknown>>;
 
