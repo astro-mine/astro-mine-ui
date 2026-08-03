@@ -12,10 +12,10 @@ import { defineConfig, devices } from "@playwright/test";
 // note). What ships here is the configuration, a smoke spec and a route-level axe sweep, so the
 // Wave 30 issue writes specs rather than infrastructure.
 //
-// **It does not run in this workspace's development environment**, and that is environmental rather
-// than a defect: Playwright cannot launch a browser under WSL here (a missing system library), so a
-// red browser lane *there* proves nothing and CI is the arbiter. That fact is recorded in
-// ARCHITECTURE.md beside the jsdom `File` one, because both look like product bugs and neither is.
+// **It runs locally once one system package is installed**, which is worth stating plainly because
+// the previous note here said it could not. `libasound.so.2` is missing on a fresh WSL checkout —
+// `libasound2t64` on Ubuntu 24.04 — and with it in place both this and the axe sweep pass here. A
+// red browser lane is a finding, not an environment quirk. See ARCHITECTURE.md for the commands.
 
 const PORT = 4173;
 

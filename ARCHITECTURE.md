@@ -264,11 +264,25 @@ watched fail is a gate nobody should trust.
 
 ### Two environment facts, because both look like product defects and are not
 
-**Playwright cannot launch a browser in this project's WSL development environment.** The failure is
-`libasound.so.2: cannot open shared object file` — a missing system library, not a broken test and
-not a broken config. Installing the browser binary is not enough; it needs `--with-deps`, which
-needs root. So a red browser lane _here_ proves nothing, **CI is the arbiter**, and the units,
-typecheck, lint, build and bundle lanes are the local truth.
+**Playwright needs one system package on a fresh WSL checkout, and then it works.** This used to read
+"cannot launch a browser here, CI is the arbiter", which was a fair description of the symptom and
+the wrong conclusion. The failure is `libasound.so.2: cannot open shared object file` — a missing
+shared library, not a broken test and not a broken config — and it is fixed by installing it:
+
+```
+sudo pnpm exec playwright install-deps chromium    # the whole supported set
+sudo apt-get install -y libasound2t64              # or just the one, on Ubuntu 24.04
+pnpm exec playwright install chromium              # the browser binary itself
+```
+
+On **Ubuntu 24.04 the package is `libasound2t64`**, not `libasound2` — renamed in the 64-bit `time_t`
+transition, and `apt install libasound2` fails with "no installation candidate", which reads like the
+package is unavailable rather than renamed.
+
+With that installed, `pnpm e2e` and `pnpm e2e:a11y` both run here and pass. A red browser lane is
+therefore a **finding**, not an environment quirk to shrug at. What remains true is that the
+libraries are a machine-level prerequisite rather than something the repository can install for you,
+so a fresh clone on a fresh machine meets this once.
 
 **`jsdom` does not implement every `File` and `Blob` method.** `File.text()` and
 `Blob.slice().arrayBuffer()` are both absent, so a page reading an uploaded file must use an API
