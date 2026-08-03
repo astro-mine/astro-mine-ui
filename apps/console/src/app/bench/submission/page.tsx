@@ -3,7 +3,7 @@ import Typography from "@mui/material/Typography";
 import type { Metadata } from "next";
 import { Suspense } from "react";
 
-import { Scorecard } from "@/components/bench/Scorecard";
+import { SubmissionView } from "@/components/bench/SubmissionView";
 import { requireEntry } from "@/shell/navigation";
 
 const ENTRY = requireEntry("/bench/submission");
@@ -30,7 +30,10 @@ export default function SubmissionPage() {
       </Typography>
 
       <Suspense fallback={null}>
-        <Scorecard />
+        {/* `SubmissionView` composes the scorecard with the provenance and replay panels. That
+            composition is a client component rather than JSX here, because a server component
+            cannot pass `Scorecard` its render prop — see the note in `SubmissionView.tsx`. */}
+        <SubmissionView />
       </Suspense>
     </Box>
   );
