@@ -49,10 +49,30 @@ updates:
         update-types:
           - major
 
+    # `@types/node`'s major is a CONSEQUENCE of `.nvmrc`, never a proposal of its own.
+    #
+    # These types describe the Node the workspace builds on. Letting them move independently means
+    # `tsc` accepting a call to an API the runtime does not have — it compiles, every test passes
+    # because nothing calls it yet, and it fails at runtime for whoever writes the first one.
+    #
+    # That is not hypothetical: #30 bumped these from 22 to 26 while `.nvmrc` said 22, went green on
+    # all eight lanes, and was merged. The lanes were right — nothing was broken *yet*. What was
+    # wrong is that a dependency update had made a runtime-support decision by proxy.
+    #
+    # So majors are ignored here and the version is moved by hand, in the same commit that moves
+    # `.nvmrc` and `engines.node`. Minors and patches still flow normally.
+    #
+    # LIFT THIS when the runtime moves: the three must be changed together, and the reason to change
+    # them is Node's own LTS schedule, not a pull request.
+    ignore:
+      - dependency-name: "@types/node"
+        update-types:
+          - "version-update:semver-major"
+
   # ---- GitHub Actions -------------------------------------------------------
   # The lane that would have raised #26 on its own. Actions are grouped without exception: they are
   # few, and a bump is either safe or immediately red in the same run that proposes it.
-  # ---- GitHub Actions -------------------------------------------------------
+  #
   # **The workflow floats major tags on purpose** — `actions/checkout@v7`,
   # `pnpm/action-setup@v6`, and so on — so a patch release arrives without a pull request and this
   # ecosystem only speaks when a *major* needs a human decision.
