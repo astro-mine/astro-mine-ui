@@ -11,7 +11,7 @@
   },
   "packageManager": "pnpm@11.10.0",
   "engines": {
-    "node": ">=22.13"
+    "node": ">=24"
   },
   "scripts": {
     "dev": "pnpm --filter @astro-mine/console dev",
@@ -48,7 +48,7 @@
     "@axe-core/playwright": "^4.12.1",
     "@eslint/js": "^9.39.0",
     "@playwright/test": "^1.62.1",
-    "@types/node": "^26.1.2",
+    "@types/node": "^24.13.3",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "@vitest/coverage-v8": "^4.1.10",
