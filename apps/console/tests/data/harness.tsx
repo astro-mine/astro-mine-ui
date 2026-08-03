@@ -36,12 +36,23 @@ export const loaderFor = (state: RuntimeConfigState) => vi.fn(async () => state)
 /** A loader that never resolves — the cold-load window, held open. */
 export const neverLoads = () => vi.fn(() => new Promise<RuntimeConfigState>(() => {}));
 
+/**
+ * `ui`, wrapped in a deployment — as an element, not rendered.
+ *
+ * For `forEachColorScheme`, which renders what it is given: handing it a bare page would mount one
+ * with no `RuntimeConfigProvider` above it, so every read would sit at `loading` forever and the
+ * axe run would assert against a spinner.
+ */
+export function withApi(ui: ReactElement, state: RuntimeConfigState = CONFIGURED): ReactElement {
+  return <RuntimeConfigProvider load={loaderFor(state)}>{ui}</RuntimeConfigProvider>;
+}
+
 /** Render `ui` under a deployment in the given configuration state. */
 export function renderWithApi(
   ui: ReactElement,
   state: RuntimeConfigState = CONFIGURED,
 ): RenderResult {
-  return renderLight(<RuntimeConfigProvider load={loaderFor(state)}>{ui}</RuntimeConfigProvider>);
+  return renderLight(withApi(ui, state));
 }
 
 /** Render `ui` under a deployment whose configuration has not resolved yet. */

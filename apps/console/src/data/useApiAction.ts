@@ -65,8 +65,7 @@ export interface ApiActionHandle<A extends readonly unknown[], T> {
  * ```
  *
  * The callback is held in a ref and is not a dependency of anything, so a caller may write it
- * inline without memoizing — `invoke` is stable for the life of the component regardless, which
- * matters because it is what a `useEffect` or a memoized child would otherwise re-run on.
+ * inline without memoizing. `invoke` changes identity only when the API endpoint does.
  */
 export function useApiAction<A extends readonly unknown[], T>(
   run: (client: ApiOperations, ...args: A) => Promise<T>,
@@ -79,13 +78,6 @@ export function useApiAction<A extends readonly unknown[], T>(
     runRef.current = run;
   });
 
-  // The client, in a ref for the same reason: so `invoke` does not change identity when the
-  // configuration resolves, which would be a new function on the render that matters most.
-  const clientRef = useRef(client);
-  useEffect(() => {
-    clientRef.current = client;
-  });
-
   // Nothing may be written after unmount. A publish that resolves into an unmounted form is a
   // React warning and, worse, a success the reader never saw.
   const live = useRef(true);
@@ -96,23 +88,31 @@ export function useApiAction<A extends readonly unknown[], T>(
     };
   }, []);
 
-  const invoke = useCallback(async (...args: A): Promise<T | undefined> => {
-    const api = clientRef.current;
-    if (api === undefined) return undefined;
+  // **`client` is a dependency, not a ref, and that is a correctness fix rather than a
+  // simplification.** Holding it in a ref filled by an effect kept `invoke`'s identity stable, at
+  // the cost of a window where `ready` was already `true` — it reads `client` directly — while
+  // `invoke` still saw `undefined` and returned without doing anything. A test that waited for the
+  // control to enable and then clicked it hit that window intermittently and reported the write as
+  // never having happened. An identity that changes when the endpoint changes is the honest one.
+  const invoke = useCallback(
+    async (...args: A): Promise<T | undefined> => {
+      if (client === undefined) return undefined;
 
-    setState({ status: "pending" });
-    try {
-      const data = await runRef.current(api, ...args);
-      if (live.current) setState({ status: "done", data });
-      return data;
-    } catch (error: unknown) {
-      // An abort here is the component going away mid-write. There is nobody to tell.
-      if (live.current && !isAbortError(error)) {
-        setState({ status: "failed", failure: failureOf(error) });
+      setState({ status: "pending" });
+      try {
+        const data = await runRef.current(client, ...args);
+        if (live.current) setState({ status: "done", data });
+        return data;
+      } catch (error: unknown) {
+        // An abort here is the component going away mid-write. There is nobody to tell.
+        if (live.current && !isAbortError(error)) {
+          setState({ status: "failed", failure: failureOf(error) });
+        }
+        return undefined;
       }
-      return undefined;
-    }
-  }, []);
+    },
+    [client],
+  );
 
   const reset = useCallback(() => setState({ status: "idle" }), []);
 
