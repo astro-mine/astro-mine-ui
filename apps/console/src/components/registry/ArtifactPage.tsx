@@ -35,6 +35,7 @@ import { useApiQuery } from "@/data/useApiQuery";
 import { useIdentity } from "@/shell/searchParams";
 
 import { Attestations } from "./Attestations";
+import { DownloadControl } from "./DownloadControl";
 import { stateOf } from "./identity";
 import type { ArtifactDetail } from "./types";
 
@@ -190,6 +191,18 @@ export function ArtifactPage() {
               <Divider />
 
               <Attestations attestations={detail.attestations ?? []} />
+
+              <Divider />
+
+              {/* Surfaced from the artifact page rather than given a route of its own (ui#11):
+                  the gate is a question about *this* artifact, and a page whose whole content is
+                  one button would be a worse place to ask it from than the page that names what
+                  is being asked about. */}
+              <DownloadControl
+                name={detail.name}
+                version={detail.version}
+                reference={detail.reference}
+              />
 
               <Divider />
 
