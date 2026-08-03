@@ -1,3 +1,5 @@
+"use client";
+
 // The shape every inspector panel shares (ui#7).
 //
 // Internal, and staying internal: it is a layout convention, not a capability, and exporting it
@@ -7,6 +9,13 @@
 // The heading is an `<h2>`. The page owns the `<h1>` (ui.md §5), and a panel that reached for one
 // would give every artifact page two top-level headings — valid HTML, and a screen reader's outline
 // with no root.
+//
+// **`"use client"` because of `useId`.** A hook cannot run in a server component, so without the
+// directive the first page to render a panel from the server would fail — at build time under
+// `output: 'export'`, which is the better place for it but a confusing place to meet it. Per file
+// rather than on the package barrel, which is `@astro-mine/ui`'s convention: `Digest` carries one
+// and `EmptyState` does not, so a consumer's server/client split stays theirs to make. Every panel
+// renders `Digest` anyway, so none of them was ever going to be server-only.
 
 import Box from "@mui/material/Box";
 import Stack from "@mui/material/Stack";
