@@ -27,6 +27,33 @@ import { defineConfig } from "vitest/config";
 const consoleRoot = fileURLToPath(new URL("./apps/console", import.meta.url));
 const viewRoot = fileURLToPath(new URL("./packages/view", import.meta.url));
 
+const packageSource = (name: string, entry = "index") =>
+  fileURLToPath(new URL(`./packages/${name}/src/${entry}.ts`, import.meta.url));
+
+/**
+ * Workspace packages resolved to their SOURCE, never to `dist/`.
+ *
+ * Without this the suite silently depends on a build: `@astro-mine/ui/testing` resolves through the
+ * package manifest to `dist/testing.js`, which is present on a machine that has run `pnpm build` and
+ * absent in a CI job that has not. It cost a red lane to find, and the failure — `Cannot find package
+ * '@astro-mine/ui/testing'` — points at the import rather than at the missing build.
+ *
+ * Resolving to source is also the behaviour worth having on its own terms: an edit in
+ * `packages/ui/src` is picked up by the next test run instead of the next build, and a test can never
+ * pass against a stale `dist/` that no longer matches the code beside it.
+ *
+ * **Longest specifier first.** These are prefix matches, so `@astro-mine/ui` listed before
+ * `@astro-mine/ui/testing` would swallow it and resolve the subpath to the main entry.
+ */
+const workspaceSource = {
+  "@astro-mine/api-client/testing": packageSource("api-client", "testing"),
+  "@astro-mine/api-client": packageSource("api-client"),
+  "@astro-mine/ui/testing": packageSource("ui", "testing"),
+  "@astro-mine/ui": packageSource("ui"),
+  "@astro-mine/inspectors": packageSource("inspectors"),
+  "@astro-mine/view": packageSource("view"),
+};
+
 /** The three projects that render components share this. */
 const componentDefaults = {
   environment: "jsdom" as const,
@@ -49,6 +76,7 @@ export default defineConfig({
         },
       },
       {
+        resolve: { alias: workspaceSource },
         test: {
           ...componentDefaults,
           name: "ui",
@@ -57,6 +85,7 @@ export default defineConfig({
         },
       },
       {
+        resolve: { alias: workspaceSource },
         test: {
           ...componentDefaults,
           name: "inspectors",
@@ -65,6 +94,7 @@ export default defineConfig({
         },
       },
       {
+        resolve: { alias: workspaceSource },
         // View's suite came across from its own repository and runs unchanged, which was the point
         // of the port. `css: false` is not incidental: nothing in the library imports a stylesheet.
         // Its tests live beside the source rather than in `tests/`, which is also how they arrived.
@@ -93,7 +123,7 @@ export default defineConfig({
         resolve: {
           // The app's own `@/*` mapping, which `tsconfig.json` declares and Next honours. Vitest
           // reads neither — the one place in the workspace a path mapping is written twice.
-          alias: { "@": `${consoleRoot}/src` },
+          alias: { ...workspaceSource, "@": `${consoleRoot}/src` },
         },
         test: {
           ...componentDefaults,

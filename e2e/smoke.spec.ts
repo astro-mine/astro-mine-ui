@@ -15,6 +15,27 @@ import { exportedRoutes } from "./routes";
 
 const routes = exportedRoutes();
 
+/**
+ * Page errors that are Cesium's rather than this application's.
+ *
+ * **Found by this lane on its first CI run**, which is the argument for having it: three identical
+ * parse errors on `/dev/globe` and `/dev/inspector` and on no other route — the two routes that mount
+ * Cesium. It comes out of Cesium's own bundled code as Chromium parses it, the page still loads, and
+ * the globe still renders. No other lane could see it: jsdom never evaluates Cesium, and a passing
+ * build says nothing about what a browser does with the bytes.
+ *
+ * Matched on the **exact message** rather than by muting the routes, so that any *other* error on
+ * those routes still fails, and so a real page that mounts a globe (`ui#17`) inherits the same
+ * narrow tolerance instead of a surprise.
+ *
+ * REMOVE THIS when a Cesium upgrade stops producing it — the check below fails loudly if the entry
+ * stops matching anything, so it cannot quietly outlive its reason.
+ */
+const KNOWN_THIRD_PARTY_ERRORS = ["Octal escape sequences are not allowed in template strings."];
+
+const unexpected = (errors: string[]) =>
+  errors.filter((message) => !KNOWN_THIRD_PARTY_ERRORS.some((known) => message.includes(known)));
+
 test("the export has routes to drive at all", () => {
   // A guard against the whole suite passing vacuously. `exportedRoutes` reads a directory, and an
   // empty directory would make every `test.describe` below expand to nothing — a green lane that
@@ -39,10 +60,25 @@ for (const route of routes) {
 
       // Hydration happens after the first paint, so give React a moment to throw if it is going to.
       await page.waitForLoadState("networkidle");
-      expect(errors, `${route} threw during hydration`).toEqual([]);
+      expect(unexpected(errors), `${route} threw during hydration`).toEqual([]);
     });
   });
 }
+
+test("the third-party error allowlist still has a subject", async ({ page }) => {
+  // An allowlist that stops matching anything is an allowlist nobody removed. This asserts the
+  // entry above is still earning its place — when a Cesium upgrade fixes it, this fails and the
+  // tolerance goes with it, rather than sitting there quietly weakening the assertion above.
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.goto("/dev/globe");
+  await page.waitForLoadState("networkidle");
+
+  expect(
+    errors.some((message) => KNOWN_THIRD_PARTY_ERRORS.some((known) => message.includes(known))),
+    "Cesium no longer produces the parse error KNOWN_THIRD_PARTY_ERRORS tolerates — delete the entry",
+  ).toBe(true);
+});
 
 test("an unknown path lands on the not-found page rather than a blank host error", async ({
   page,
