@@ -16,7 +16,7 @@
   "scripts": {
     "dev": "pnpm --filter @astro-mine/console dev",
     "build": "pnpm -r run build",
-    "typecheck": "pnpm -r run typecheck",
+    "typecheck": "pnpm -r run typecheck && tsc -p tsconfig.e2e.json",
     "test": "vitest run",
     "lint": "eslint . --max-warnings 0",
     "format": "prettier --write .",
@@ -37,13 +37,21 @@
     "cesium:assets": "pnpm --filter @astro-mine/console run cesium:assets",
     "check:contrast": "vitest run --project ui tests/contrast.test.ts tests/contrast-gate.test.ts",
     "check:palette": "vitest run --project ui tests/palette.test.ts tests/palette-gate.test.ts",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "check:api-drift:test": "node --test scripts/check-api-drift.test.mjs",
+    "check:bundle": "node scripts/check-bundle-budget.mjs",
+    "check:bundle:test": "node --test scripts/check-bundle-budget.test.mjs",
+    "e2e": "playwright test",
+    "e2e:a11y": "playwright test e2e/a11y.spec.ts"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
     "@eslint/js": "^9.39.0",
+    "@playwright/test": "^1.62.1",
     "@types/node": "^22.10.0",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
+    "@vitest/coverage-v8": "^4.1.10",
     "eslint": "^9.39.5",
     "eslint-config-next": "^16.2.12",
     "eslint-config-prettier": "^10.1.8",
@@ -54,7 +62,6 @@
     "react-dom": "^19.2.8",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.65.0",
-    "@vitest/coverage-v8": "^4.1.10",
     "vitest": "^4.1.10"
   }
 }
