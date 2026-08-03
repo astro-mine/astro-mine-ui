@@ -53,6 +53,60 @@ check nobody has seen reject anything is a check nobody should trust, and with f
 the real tree has no live violation to demonstrate — so each failure mode is proven against fixture
 trees instead.
 
+### The one permitted sibling edge, and why `inspectors` declines half of it
+
+Rule 3 permits `inspectors → ui` **and** `inspectors → view`. `ui#7` took the first and declined the
+second, which is worth recording because the diagram above still draws both.
+
+`@astro-mine/view` publishes exactly one entry, and that entry re-exports its Cesium module — the
+package says so deliberately, so that every consumer arrives through the one `"use client"`
+boundary. The consequence is that importing _anything_ from it puts Cesium in the importer's graph.
+`@astro-mine/inspectors` is imported by the registry pages, so a static import there would put four
+megabytes into the first paint of every page that renders an artifact row, and CI already asserts
+that the Cesium chunk is preloaded by **no** prerendered route.
+
+The application is where that is solved, once: `apps/console/src/components/Globe.tsx` is the single
+`next/dynamic`, `ssr: false`, `CESIUM_BASE_URL` mount, and the layering script's own rejection text
+says a second importer inherits none of its care. So an inspector panel **is handed** a mounted
+globe through `InspectorSlots` and arranges it; it does not summon one. The edge stays permitted —
+a future consumer of View's pure `frames` subtree would take it legitimately — and
+`packages/inspectors/tests/surface.test.ts` asserts the manifest declares no dependency on View, so
+the decision is a test rather than a memory.
+
+## Vocabularies that live in Python
+
+Two of the front end's types are not the front end's to define. Core owns `PluginKind` — which
+interface a plugin implements — and Hub owns the container vocabulary — what shape of payload an
+artifact carries. They are **two axes and not one**: they overlap on four names, diverge everywhere
+else, and no total map between them exists, because a served surrogate is `field_model` or
+`regime_engine` by physics domain. The artifact inspector registry resolves on both.
+
+They are Python — a `StrEnum` and a tuple — and TypeScript can import neither, so they are
+**generated** into `packages/inspectors/src/generated/vocabularies.ts` from a pin that records the
+platform commit and the members it read. That buys the thing worth having: a contribution for a kind
+the platform does not have is a compile error, not a panel that never appears.
+
+- **`pnpm codegen:vocabularies`** — pin → TypeScript. Offline and deterministic; the output is
+  committed, so a clean clone builds with no Python in sight.
+- **`pnpm codegen:vocabularies --refresh`** — re-read the platform at HEAD and repin.
+- **`pnpm check:vocabularies`** — the gate. The committed TypeScript is what the pin generates, and
+  the pinned members are what the platform declares **at its default-branch HEAD**.
+
+That last word is the difference between a drift guard and a tamper check, and it is a deliberate
+divergence from [`check-core-schema.mjs`](scripts/check-core-schema.mjs), which reads its vendored
+files at the SHA its own pin names and therefore cannot see its upstream move. The cost is real: a
+`PluginKind` added upstream turns this lane red on an unrelated pull request here. That is the alarm
+working, and the fix is one command.
+
+What is vendored is the **members**, not the modules. `hub/registry/_oci.py` is four hundred lines
+that change constantly for reasons having nothing to do with the vocabulary, and a byte-equality
+guard over it would go red on every unrelated edit — a guard that cries wolf is a guard somebody
+mutes. A missing credential, a file that has moved, or a class that has been renamed is a **hard
+failure**, never a skip: a compatibility check that goes quiet when its subject disappears has
+stopped existing, and it goes quiet on exactly the day nobody is looking.
+[`scripts/check-vocabularies.test.mjs`](scripts/check-vocabularies.test.mjs) proves each of those
+rejections against fixture sources.
+
 ## Identity lives in the search params
 
 The application is a **static export** (`output: 'export'`): a bundle any host serves, with no Node
@@ -88,16 +142,17 @@ packages/ui/                 @astro-mine/ui          MUI theme + the honesty kit
 packages/view/               @astro-mine/view        Cesium globe, MCAP replay, timeline, frames
 packages/inspectors/         @astro-mine/inspectors  the artifact-kind → panel registry
 scripts/check-layering.mjs   the dependency-direction gate
+scripts/check-vocabularies.mjs  the Core/Hub vocabulary drift gate
 ```
 
 The workspace root is `private: true` and **publishes nothing**; only the packages that ship carry
 the `@astro-mine` scope (`conventions.md` §13). `apps/console` carries the scope too and is
 `private: true` with it — it is deployed as a built application, never consumed as a package.
 
-`packages/api-client` and `packages/ui` are filled (`ui#2`, `ui#3`, `ui#4`); `view` and `inspectors` are
-still skeletons that build and typecheck empty, so the workspace, the build graph and the layering
-gate stay real before either is under pressure. Each remaining `src/index.ts` names the issue that
-fills it.
+All four packages are filled: `api-client` (`ui#2`), `ui` (`ui#3`, `ui#4`), `view` (`ui#6`) and
+`inspectors` (`ui#7`). They were stood up as skeletons that built and typechecked empty, so the
+workspace, the build graph and the layering gate were real before any of them was under pressure —
+which is how the gates arrived with the packages rather than after them.
 
 ### Colour lives in the theme
 
