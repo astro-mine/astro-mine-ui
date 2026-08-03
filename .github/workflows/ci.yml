@@ -219,8 +219,12 @@ jobs:
 
       # Built once, used by three lanes. `include-hidden-files` matters: the export has none today,
       # but the default silently drops dotfiles and a missing one would surface as a mystery 404.
+      #
+      # The artifact actions are the one pair here that is genuinely exercised rather than merely
+      # present — `bundle`, `e2e` and `a11y` all download what this uploads, so a major bump that
+      # broke the handoff would take three lanes with it rather than passing quietly.
       - name: Upload the export
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: static-export
           path: apps/console/out
@@ -240,7 +244,7 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: static-export
           path: apps/console/out
@@ -259,7 +263,7 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: static-export
           path: apps/console/out
@@ -275,7 +279,7 @@ jobs:
 
       - name: Upload the report on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-report
           path: playwright-report
@@ -299,7 +303,7 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: static-export
           path: apps/console/out
