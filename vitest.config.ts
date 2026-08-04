@@ -63,19 +63,19 @@ const componentDefaults = {
 
 export default defineConfig({
   test: {
-    // **A cap, added when Wave 29 made the suite big enough to need one.**
+    // **No `maxWorkers` override, and that is a decision with a scar.**
     //
-    // The console project grew from three test files to eighteen, each of which stands up jsdom,
-    // an MSW interceptor and a Material UI tree. Vitest's default is one fork per core, and on a
-    // machine where those forks are competing for a Windows drive the pool started failing to
-    // start workers at all — `[vitest-pool-runner]: Timeout waiting for worker to respond`, which
-    // surfaces as an unrelated test file "failing" and reads like a code fault.
+    // Wave 29 grew the console project from three test files to twenty-three, each standing up
+    // jsdom, an MSW interceptor and a Material UI tree. On the authoring machine — many cores, a
+    // Windows drive — the pool began failing to start workers at all, and capping it at four fixed
+    // that. It also quietly broke CI, where `ubuntu-latest` has four vCPUs and Vitest's own default
+    // is one fewer than that: a cap of four is a *raise*, and under v8 coverage instrumentation the
+    // over-subscription pushed sixteen assertions past their four-second ceiling. The unit lane was
+    // red for two pushes before the shape of it was legible.
     //
-    // Four is enough to keep the run parallel and few enough that each worker gets to finish
-    // booting. Two was tried and roughly doubled the wall clock for no reliability gain — the
-    // intermittency at four turned out to be a `userEvent` pointer-events check racing MUI's menu
-    // transition, which is fixed where it happens rather than by starving the pool.
-    maxWorkers: 4,
+    // Vitest's default already scales to the machine it is on. If the local pool starves again, run
+    // one project at a time (`pnpm test --project console`) rather than reaching for a number that
+    // is right on one machine and wrong on the other.
 
     // **The test budget has to be larger than the assertion budget, and it was not.**
     //
