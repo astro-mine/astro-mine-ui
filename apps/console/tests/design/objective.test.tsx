@@ -79,14 +79,19 @@ const awaitSubmittable = () =>
  * the run fails on timing. Waiting for the first field is waiting for the form.
  */
 async function fillValidForm(user: ReturnType<typeof userEvent.setup>) {
-  await user.type(await screen.findByRole("textbox", { name: /^Name/ }), "Polar ice campaign");
-  await user.type(screen.getByRole("textbox", { name: /^Author/ }), "designer");
-  await user.type(screen.getByRole("textbox", { name: /Region name/ }), "Shackleton rim");
-  await user.type(screen.getAllByRole("textbox", { name: /^Metric/ })[0]!, "ice_yield");
+  // **Short values on purpose.** `user.type` is one keystroke at a time and each one re-renders
+  // every control on a form with twenty of them; the realistic strings this started with were
+  // roughly sixty keystrokes, which under v8 coverage instrumentation on a CI runner put the whole
+  // test within a few hundred milliseconds of the async ceiling. None of these assertions is about
+  // what the text *says* — they are about the objective being captured, the digest being kept and
+  // the CRS being sent — so the content can be short without the interaction being any less real.
+  await user.type(await screen.findByRole("textbox", { name: /^Name/ }), "Ice");
+  await user.type(screen.getByRole("textbox", { name: /^Author/ }), "d");
+  await user.type(screen.getByRole("textbox", { name: /Region name/ }), "Rim");
+  await user.type(screen.getAllByRole("textbox", { name: /^Metric/ })[0]!, "ice");
   await user.type(screen.getAllByRole("textbox", { name: /^Unit/ })[0]!, "kg");
 
-  await user.click(screen.getByRole("textbox", { name: /Candidate name/ }));
-  await user.type(screen.getByRole("textbox", { name: /Candidate name/ }), "Two excavators");
+  await user.type(screen.getByRole("textbox", { name: /Candidate name/ }), "Two");
   await user.click(screen.getByRole("combobox", { name: /Robot/ }));
   await user.click(await screen.findByRole("option", { name: "commons/excavator:1.0.0" }));
 }
@@ -139,6 +144,7 @@ describe("authoring an objective", () => {
     expect(session.candidates).toHaveLength(1);
     // The candidate carries the catalog's reference — a real content-addressed asset, not a name
     // somebody typed.
+    expect(session.candidates?.[0]?.id).toBe("Two");
     expect(session.candidates?.[0]?.swarm[0]?.sadf_ref).toBe("commons/excavator:1.0.0");
   });
 
