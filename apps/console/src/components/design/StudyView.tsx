@@ -15,6 +15,7 @@ import Stack from "@mui/material/Stack";
 import { useCallback, useState } from "react";
 
 import { InspectionPane } from "./InspectionPane";
+import { PublishPane } from "./PublishPane";
 import { StudyComparison } from "./StudyComparison";
 import { readSession } from "./session";
 import type { WorldResponse } from "./types";
@@ -28,17 +29,28 @@ export function StudyView() {
     setWorld(resolved);
   }, []);
 
-  // The candidate document, from what this session composed. The comparison names candidates by
+  // The candidate documents, from what this session composed. The comparison names candidates by
   // id; the swarm they are made of lives with the composition.
-  const candidate = readSession().candidates?.find((entry) => entry.id === selected);
+  const session = readSession();
+  const candidates = session.candidates ?? [];
+  const candidate = candidates.find((entry) => entry.id === selected);
 
   return (
     <StudyComparison selectedId={selected} onSelect={setSelected}>
-      {() => (
+      {(view) => (
         <Stack spacing={4}>
           <Divider />
           <InspectionPane candidate={candidate} onWorldResolved={onWorldResolved} />
-          {world === undefined ? null : null}
+          <Divider />
+          {/* Last: publishing is the end of P5's journey and the hand-off out of it, and it takes
+              the world the design was actually inspected against — which is why the inspection
+              pane sits above it rather than beside it. */}
+          <PublishPane
+            view={view}
+            objective={session.objective?.document}
+            candidates={candidates}
+            world={world}
+          />
         </Stack>
       )}
     </StudyComparison>
