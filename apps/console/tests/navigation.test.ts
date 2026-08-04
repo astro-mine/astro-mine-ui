@@ -33,19 +33,22 @@ const APP_DIR = fileURLToPath(new URL("../src/app", import.meta.url));
  * scaffold is better than a nav entry pointing at a development page, and better than no way at all
  * to see a behaviour render.
  *
- * - `/dev/globe` (`ui#6`) — a globe has to mount *somewhere* to prove Cesium renders in the built
- *   export, and no real page mounts one until `ui#17`. **Delete when `ui#17` lands.**
+ * `/dev/globe` (`ui#6`) was here and **has been deleted by `ui#17`**, which was its stated expiry:
+ * `/design/study` now mounts a globe on a page a user actually visits, so the scaffold's reason —
+ * "a globe has to mount somewhere to prove Cesium renders in the built export" — is served by a
+ * real page. The exception went with the route rather than outliving it.
+ *
  * - `/dev/inspector` (`ui#7`) — the artifact inspector registry's most user-visible behaviour is
  *   what a reader meets when *nothing* claims their artifact, or when two things claim it equally.
  *   No page renders a panel until `ui#10`, so without this those states could only be asserted in
  *   jsdom. **Delete when `ui#10` lands.**
  *
- * **Two is a pattern, and the pattern is the thing to watch.** Each of these is honest on its own;
- * a third would be a sign that scaffolds are how this application gets built, rather than how a
- * behaviour is checked once before a real page exists. An exception nobody removes becomes the
- * precedent for the next one.
+ * **The pattern is the thing to watch.** Each of these is honest on its own; several would be a
+ * sign that scaffolds are how this application gets built, rather than how a behaviour is checked
+ * once before a real page exists. An exception nobody removes becomes the precedent for the next
+ * one — which is why the list going from two to one here matters more than the deletion itself.
  */
-const UNLISTED_ROUTES: readonly string[] = ["/dev/globe", "/dev/inspector"];
+const UNLISTED_ROUTES: readonly string[] = ["/dev/inspector"];
 
 /** Every route the filesystem actually serves, derived from where the `page.tsx` files are. */
 function routesOnDisk(dir = APP_DIR, prefix = ""): string[] {
@@ -166,8 +169,9 @@ describe("the table and the filesystem agree", () => {
   });
 
   it("keeps the unlisted list to routes that actually exist", () => {
-    // The exception must not outlive the route it excuses. If `/dev/globe` is deleted and this
-    // entry is not, the next unlisted page inherits a licence nobody granted it.
+    // The exception must not outlive the route it excuses — and it did not: `/dev/globe` was
+    // deleted by ui#17 and this check is what would have caught the entry being left behind. A
+    // stale exception is a licence the next unlisted page inherits without anybody granting it.
     const routes = new Set(routesOnDisk());
     for (const route of UNLISTED_ROUTES) {
       expect(routes, `${route} is excused from the navigation but does not exist`).toContain(route);

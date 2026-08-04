@@ -3,7 +3,7 @@ import Typography from "@mui/material/Typography";
 import type { Metadata } from "next";
 import { Suspense } from "react";
 
-import { StudyComparison } from "@/components/design/StudyComparison";
+import { StudyView } from "@/components/design/StudyView";
 import { requireEntry } from "@/shell/navigation";
 
 const ENTRY = requireEntry("/design/study");
@@ -29,7 +29,10 @@ export default function StudyPage() {
       </Typography>
 
       <Suspense fallback={null}>
-        <StudyComparison />
+        {/* `StudyView` composes the comparison with the 3D inspection pane and, at ui#18, the
+            publish step. A client component rather than JSX here, because a server component
+            cannot hand `StudyComparison` its render prop. */}
+        <StudyView />
       </Suspense>
     </Box>
   );

@@ -19,14 +19,13 @@ const routes = exportedRoutes();
  * Page errors that are Cesium's rather than this application's.
  *
  * **Found by this lane on its first CI run**, which is the argument for having it: three identical
- * parse errors on `/dev/globe` and `/dev/inspector` and on no other route — the two routes that mount
- * Cesium. It comes out of Cesium's own bundled code as Chromium parses it, the page still loads, and
+ * parse errors on the routes that mount Cesium and on no other route. It comes out of Cesium's own bundled code as Chromium parses it, the page still loads, and
  * the globe still renders. No other lane could see it: jsdom never evaluates Cesium, and a passing
  * build says nothing about what a browser does with the bytes.
  *
  * Matched on the **exact message** rather than by muting the routes, so that any *other* error on
- * those routes still fails, and so a real page that mounts a globe (`ui#17`) inherits the same
- * narrow tolerance instead of a surprise.
+ * those routes still fails — which is what let `/design/study` inherit the tolerance at `ui#17`
+ * without anybody widening it.
  *
  * REMOVE THIS when a Cesium upgrade stops producing it — the check below fails loudly if the entry
  * stops matching anything, so it cannot quietly outlive its reason.
@@ -71,7 +70,10 @@ test("the third-party error allowlist still has a subject", async ({ page }) => 
   // tolerance goes with it, rather than sitting there quietly weakening the assertion above.
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
-  await page.goto("/dev/globe");
+  // `/dev/inspector` since `ui#17` deleted `/dev/globe`. It mounts Cesium through the same
+  // `components/Globe` boundary, so it is the same subject; the real globe on `/design/study`
+  // cannot be the subject here because it draws nothing until a world resolves against a live API.
+  await page.goto("/dev/inspector");
   await page.waitForLoadState("networkidle");
 
   expect(
