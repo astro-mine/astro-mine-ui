@@ -1,12 +1,25 @@
 // Test setup for the application's component lane (ui#5).
 
 import "@testing-library/jest-dom/vitest";
-import { cleanup } from "@testing-library/react";
+import { cleanup, configure } from "@testing-library/react";
 import { resetColorScheme } from "@astro-mine/ui/testing";
 import type { AnchorHTMLAttributes, ReactNode } from "react";
 import { afterEach, vi } from "vitest";
 
 import { resetRouter } from "./router";
+
+// **Testing Library's one-second default is too tight for what these tests actually do**, and the
+// symptom was a suite that failed roughly one run in three on assertions that were never wrong.
+//
+// A page test here is not "render and assert": it resolves the runtime configuration, builds a
+// client, issues one or more requests through an MSW interceptor, and re-renders a tree of MUI
+// controls — all under jsdom, on a Windows drive. Four seconds is comfortably inside that and still
+// far short of Vitest's own per-test timeout, so a genuinely hung assertion still fails as a
+// failure rather than sitting there.
+//
+// This raises the ceiling; it does not add a wait. A passing assertion still resolves on its first
+// poll.
+configure({ asyncUtilTimeout: 4000 });
 
 // **`next/navigation`, bound to the test router.** An async factory with a dynamic import, rather
 // than a factory closing over an imported binding: `vi.mock` is hoisted above the imports, so a
