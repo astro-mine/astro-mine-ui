@@ -315,6 +315,11 @@ jobs:
         # Named specs rather than the whole project: `pnpm e2e` also sweeps axe, which is the `a11y`
         # job's work and runs there in parallel. Locally the bare command is the right default —
         # one command, the whole browser lane — and here it would just be the same minutes twice.
+        #
+        # The scripts spell it `--project=degraded`, not `--project degraded`, and that is what makes
+        # passing files here work at all: `--project` takes a *list*, so with a space the paths
+        # append to it and Playwright reports `Project(s) "e2e/smoke.spec.ts" not found`. Caught by
+        # this lane on its first run, which is the argument for the lane.
         run: pnpm e2e e2e/smoke.spec.ts e2e/degraded.spec.ts
 
       - name: Upload the report on failure

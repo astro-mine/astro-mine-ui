@@ -41,9 +41,9 @@
     "check:api-drift:test": "node --test scripts/check-api-drift.test.mjs",
     "check:bundle": "node scripts/check-bundle-budget.mjs",
     "check:bundle:test": "node --test scripts/check-bundle-budget.test.mjs",
-    "e2e": "playwright test --project degraded",
-    "e2e:a11y": "playwright test e2e/a11y.spec.ts --project degraded",
-    "e2e:journeys": "ASTRO_MINE_JOURNEYS=1 playwright test --project journeys"
+    "e2e": "playwright test --project=degraded",
+    "e2e:a11y": "playwright test --project=degraded e2e/a11y.spec.ts",
+    "e2e:journeys": "ASTRO_MINE_JOURNEYS=1 playwright test --project=journeys"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.12.1",
