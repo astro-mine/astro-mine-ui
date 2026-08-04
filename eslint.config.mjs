@@ -29,6 +29,10 @@ const config = [
       // third-party workers and minified bundles that are *copied*, never compiled — linting them
       // reported 3,300 problems in code this repository does not own and cannot change.
       "apps/console/public/cesium/**",
+      // The journey suite's configured copy of the built export (ui#20) — `apps/console/out` plus
+      // one `config.json`. It is the *same emitted bundle* the `out/**` entry above already
+      // ignores, so linting it means linting minified third-party chunks under a second name.
+      "apps/*/.e2e/**",
     ],
   },
 
