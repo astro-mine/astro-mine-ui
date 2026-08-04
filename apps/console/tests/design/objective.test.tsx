@@ -24,6 +24,21 @@ import { asset, captured, intentDraft } from "./fixtures";
 
 const { api, use, server } = mockApi();
 
+/**
+ * A user that does not re-check `pointer-events` before every click.
+ *
+ * **This is a jsdom fidelity problem, not a lowered standard.** MUI's `Select` opens its menu
+ * behind a transition, and for the frame or two that transition is running the option inherits
+ * `pointer-events: none`. `userEvent`'s check reads that and throws *immediately* — so the failure
+ * is a fast one that looks like a missing element, appears only when the machine is loaded enough
+ * for the transition to still be in flight, and passes every time the file is run alone. That cost
+ * an afternoon of chasing timeouts that were not timeouts.
+ *
+ * A real browser would have completed the transition. Everything else about the interaction is
+ * unchanged: same events, same order, same target.
+ */
+const menuUser = () => userEvent.setup({ delay: null, pointerEventsCheck: 0 });
+
 const CATALOG = api.studioListCatalog({
   body: [asset(), asset({ name: "hauler", reference: "commons/hauler:1.0.0" })],
 });
@@ -35,13 +50,13 @@ beforeEach(() => {
 /**
  * A user with no inter-key delay.
  *
- * `userEvent.setup()`'s default is one tick per keystroke, and this form is large: filling it takes
+ * `menuUser()`'s default is one tick per keystroke, and this form is large: filling it takes
  * roughly sixty keystrokes, each re-rendering every control. On a slower machine that ran past
  * Testing Library's five-second default and the suite failed intermittently on timing rather than
  * on behaviour. `delay: null` keeps the interactions real — same events, same order — without the
  * artificial pacing.
  */
-const typist = () => userEvent.setup({ delay: null });
+const typist = () => menuUser();
 
 /**
  * Wait until the form can actually be submitted.

@@ -24,6 +24,21 @@ import { campaign, captured, comparison } from "./fixtures";
 
 const { api, use, server } = mockApi();
 
+/**
+ * A user that does not re-check `pointer-events` before every click.
+ *
+ * **This is a jsdom fidelity problem, not a lowered standard.** MUI's `Select` opens its menu
+ * behind a transition, and for the frame or two that transition is running the option inherits
+ * `pointer-events: none`. `userEvent`'s check reads that and throws *immediately* — so the failure
+ * is a fast one that looks like a missing element, appears only when the machine is loaded enough
+ * for the transition to still be in flight, and passes every time the file is run alone. That cost
+ * an afternoon of chasing timeouts that were not timeouts.
+ *
+ * A real browser would have completed the transition. Everything else about the interaction is
+ * unchanged: same events, same order, same target.
+ */
+const menuUser = () => userEvent.setup({ delay: null, pointerEventsCheck: 0 });
+
 const HEALTHY = api.healthz({
   body: {
     component: "astro-mine-api",
@@ -99,7 +114,7 @@ describe("publishing", () => {
       }),
     );
     renderWithApi(pane);
-    await publishAs(userEvent.setup({ delay: null }), "polar-ice");
+    await publishAs(menuUser(), "polar-ice");
 
     await screen.findByText("Published");
     expect(sent?.campaign).toBeNull();
@@ -120,7 +135,7 @@ describe("publishing", () => {
       }),
     );
     renderWithApi(pane);
-    await publishAs(userEvent.setup({ delay: null }), "polar-ice");
+    await publishAs(menuUser(), "polar-ice");
 
     expect(await screen.findByText("commons/polar-ice:0.1.0")).toBeInTheDocument();
     expect(screen.getByText("sha256:campaign")).toBeInTheDocument();
@@ -166,7 +181,7 @@ describe("publishing", () => {
       }),
     );
     renderWithApi(pane);
-    await publishAs(userEvent.setup({ delay: null }), "polar-ice");
+    await publishAs(menuUser(), "polar-ice");
 
     expect(await screen.findByText("no registry wiring for campaigns")).toBeInTheDocument();
   });

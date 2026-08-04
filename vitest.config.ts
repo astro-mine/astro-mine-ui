@@ -72,8 +72,9 @@ export default defineConfig({
     // surfaces as an unrelated test file "failing" and reads like a code fault.
     //
     // Four is enough to keep the run parallel and few enough that each worker gets to finish
-    // booting. Raise it if the wall-clock becomes the complaint; do not remove it without checking
-    // that the pool still starts under load.
+    // booting. Two was tried and roughly doubled the wall clock for no reliability gain — the
+    // intermittency at four turned out to be a `userEvent` pointer-events check racing MUI's menu
+    // transition, which is fixed where it happens rather than by starving the pool.
     maxWorkers: 4,
 
     projects: [

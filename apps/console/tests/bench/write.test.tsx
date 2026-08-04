@@ -27,6 +27,21 @@ import { jobRecord, submission } from "./fixtures";
 
 const { api, use, server } = mockApi();
 
+/**
+ * A user that does not re-check `pointer-events` before every click.
+ *
+ * **This is a jsdom fidelity problem, not a lowered standard.** MUI's `Select` opens its menu
+ * behind a transition, and for the frame or two that transition is running the option inherits
+ * `pointer-events: none`. `userEvent`'s check reads that and throws *immediately* — so the failure
+ * is a fast one that looks like a missing element, appears only when the machine is loaded enough
+ * for the transition to still be in flight, and passes every time the file is run alone. That cost
+ * an afternoon of chasing timeouts that were not timeouts.
+ *
+ * A real browser would have completed the transition. Everything else about the interaction is
+ * unchanged: same events, same order, same target.
+ */
+const menuUser = () => userEvent.setup({ delay: null, pointerEventsCheck: 0 });
+
 const SCENARIOS = api.benchListScenarios({ body: ["lunar-polar-ice-v1"] });
 
 const auditEvent = (over: Record<string, unknown> = {}) => ({
@@ -60,7 +75,7 @@ describe("submitting from a registry digest", () => {
     use(api.benchSubmitHub({ body: jobRecord() }));
     renderWithApi(<SubmitForm />);
 
-    const user = userEvent.setup();
+    const user = menuUser();
     await user.click(await screen.findByRole("combobox", { name: /Scenario/ }));
     await user.click(await screen.findByRole("option", { name: "lunar-polar-ice-v1" }));
     await user.type(
@@ -93,7 +108,7 @@ describe("submitting from a registry digest", () => {
     use(api.benchSubmit({ body: submission() }));
     renderWithApi(<SubmitForm />);
 
-    const user = userEvent.setup();
+    const user = menuUser();
     await user.click(await screen.findByRole("button", { name: "Direct reference" }));
     await user.click(await screen.findByRole("combobox", { name: /Scenario/ }));
     await user.click(await screen.findByRole("option", { name: "lunar-polar-ice-v1" }));
@@ -127,7 +142,7 @@ describe("submitting from a registry digest", () => {
     use(api.benchSubmit({ body: submission({ runner: "fixture/0.1.0" }) }));
     renderWithApi(<SubmitForm />);
 
-    const user = userEvent.setup();
+    const user = menuUser();
     await user.click(await screen.findByRole("button", { name: "Direct reference" }));
     await user.click(await screen.findByRole("combobox", { name: /Scenario/ }));
     await user.click(await screen.findByRole("option", { name: "lunar-polar-ice-v1" }));
@@ -149,7 +164,7 @@ describe("submitting from a registry digest", () => {
     );
     renderWithApi(<SubmitForm />);
 
-    const user = userEvent.setup();
+    const user = menuUser();
     await user.click(await screen.findByRole("combobox", { name: /Scenario/ }));
     await user.click(await screen.findByRole("option", { name: "lunar-polar-ice-v1" }));
     await user.type(screen.getByRole("textbox", { name: /Registry reference/ }), "x@sha256:abc");
@@ -306,7 +321,7 @@ describe("retracting", () => {
   it("requires a confirmation that names what is being retracted", async () => {
     // "Are you sure?" over an unnamed thing is a question nobody can answer correctly.
     renderWithApi(control);
-    const user = userEvent.setup();
+    const user = menuUser();
     await user.click(await screen.findByRole("button", { name: "Retract this submission" }));
 
     const dialog = await screen.findByRole("dialog");
@@ -318,7 +333,7 @@ describe("retracting", () => {
   it("does nothing until the confirmation is given", async () => {
     // Nothing stubbed: a DELETE here would fail the test outright.
     renderWithApi(control);
-    const user = userEvent.setup();
+    const user = menuUser();
     await user.click(await screen.findByRole("button", { name: "Retract this submission" }));
     await screen.findByRole("dialog");
     await user.click(screen.getByRole("button", { name: "Cancel" }));
@@ -338,7 +353,7 @@ describe("retracting", () => {
       />,
     );
 
-    const user = userEvent.setup();
+    const user = menuUser();
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "Retract this submission" })).toBeEnabled(),
     );
@@ -355,7 +370,7 @@ describe("retracting", () => {
     );
     renderWithApi(control);
 
-    const user = userEvent.setup();
+    const user = menuUser();
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "Retract this submission" })).toBeEnabled(),
     );

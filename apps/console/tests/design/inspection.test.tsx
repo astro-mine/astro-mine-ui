@@ -25,6 +25,21 @@ import { resolvedWorld, world } from "./fixtures";
 
 const { api, use } = mockApi();
 
+/**
+ * A user that does not re-check `pointer-events` before every click.
+ *
+ * **This is a jsdom fidelity problem, not a lowered standard.** MUI's `Select` opens its menu
+ * behind a transition, and for the frame or two that transition is running the option inherits
+ * `pointer-events: none`. `userEvent`'s check reads that and throws *immediately* — so the failure
+ * is a fast one that looks like a missing element, appears only when the machine is loaded enough
+ * for the transition to still be in flight, and passes every time the file is run alone. That cost
+ * an afternoon of chasing timeouts that were not timeouts.
+ *
+ * A real browser would have completed the transition. Everything else about the interaction is
+ * unchanged: same events, same order, same target.
+ */
+const menuUser = () => userEvent.setup({ delay: null, pointerEventsCheck: 0 });
+
 const WORLDS = api.studioListWorlds({ body: [world()] });
 
 const candidate = (over: Partial<DesignCandidate> = {}): DesignCandidate => ({
@@ -50,7 +65,7 @@ describe("terrain is reachable from a control", () => {
     renderWithApi(<InspectionPane />);
 
     const picker = await screen.findByRole("combobox", { name: /World/ });
-    await userEvent.setup({ delay: null }).click(picker);
+    await menuUser().click(picker);
     expect(
       await screen.findByRole("option", { name: /commons\/shackleton-rim/ }),
     ).toBeInTheDocument();
@@ -61,7 +76,7 @@ describe("terrain is reachable from a control", () => {
     use(api.studioResolveWorld({ body: resolvedWorld() }));
     renderWithApi(<InspectionPane candidate={candidate()} />);
 
-    await chooseWorld(userEvent.setup({ delay: null }));
+    await chooseWorld(menuUser());
     expect(await screen.findByText("shackleton-rim")).toBeInTheDocument();
     expect(screen.getByText(/sha256:world/)).toBeInTheDocument();
   });
@@ -94,7 +109,7 @@ describe("the four no-swarm cases each get their own reason", () => {
     use(api.studioResolveWorld({ body: resolvedWorld({ site: null }) }));
     renderWithApi(<InspectionPane candidate={candidate()} />);
 
-    await chooseWorld(userEvent.setup({ delay: null }));
+    await chooseWorld(menuUser());
     expect(
       await screen.findByText("This world bundle publishes no site anchor"),
     ).toBeInTheDocument();
@@ -106,7 +121,7 @@ describe("the four no-swarm cases each get their own reason", () => {
     use(api.studioResolveWorld({ body: resolvedWorld() }));
     renderWithApi(<InspectionPane candidate={candidate({ swarm: [] })} />);
 
-    await chooseWorld(userEvent.setup({ delay: null }));
+    await chooseWorld(menuUser());
     expect(await screen.findByText("This candidate declares no units")).toBeInTheDocument();
   });
 
@@ -134,7 +149,7 @@ describe("the design-time layout disclosure", () => {
     );
     renderWithApi(<InspectionPane candidate={candidate()} />);
 
-    await chooseWorld(userEvent.setup({ delay: null }));
+    await chooseWorld(menuUser());
     expect(
       await screen.findByText("These positions are a design-time convention, not a simulated pose"),
     ).toBeInTheDocument();
@@ -146,7 +161,7 @@ describe("the design-time layout disclosure", () => {
     use(api.studioResolveWorld({ body: resolvedWorld() }));
     renderWithApi(<InspectionPane candidate={candidate({ swarm: [] })} />);
 
-    await chooseWorld(userEvent.setup({ delay: null }));
+    await chooseWorld(menuUser());
     await screen.findByText("This candidate declares no units");
     expect(screen.queryByText(/design-time convention/)).toBeNull();
   });
@@ -207,7 +222,7 @@ describe("a deployment without its registry wiring", () => {
     );
     renderWithApi(<InspectionPane candidate={candidate()} />);
 
-    await chooseWorld(userEvent.setup({ delay: null }));
+    await chooseWorld(menuUser());
     expect(await screen.findByText("That world could not be resolved")).toBeInTheDocument();
     expect(screen.getByText("no registry configured for worlds")).toBeInTheDocument();
     // The pane survives: the picker is still there and still usable.
