@@ -63,6 +63,39 @@ const componentDefaults = {
 
 export default defineConfig({
   test: {
+    // **No `maxWorkers` override, and that is a decision with a scar.**
+    //
+    // Wave 29 grew the console project from three test files to twenty-three, each standing up
+    // jsdom, an MSW interceptor and a Material UI tree. On the authoring machine — many cores, a
+    // Windows drive — the pool began failing to start workers at all, and capping it at four fixed
+    // that. It also quietly broke CI, where `ubuntu-latest` has four vCPUs and Vitest's own default
+    // is one fewer than that: a cap of four is a *raise*, and under v8 coverage instrumentation the
+    // over-subscription pushed sixteen assertions past their four-second ceiling. The unit lane was
+    // red for two pushes before the shape of it was legible.
+    //
+    // Vitest's default already scales to the machine it is on. If the local pool starves again, run
+    // one project at a time (`pnpm test --project console`) rather than reaching for a number that
+    // is right on one machine and wrong on the other.
+
+    // **The test budget has to be larger than the assertion budget, and it was not.**
+    //
+    // `apps/console/tests/setup.tsx` raises Testing Library's async ceiling to four seconds,
+    // because a page test here resolves the runtime configuration, builds a client, goes through an
+    // MSW interceptor and re-renders a Material UI tree. Vitest's default `testTimeout` is *five*
+    // seconds — so a single four-second wait consumed almost the whole test, and anything that
+    // needed a second one failed on the clock rather than on the assertion.
+    //
+    // Locally that was rare enough to look like flake. On CI, with v8 coverage instrumenting every
+    // module, it took out sixteen tests at once — every one of them reporting almost exactly
+    // 5000 ms, which is what a `testTimeout` failure looks like and is how the real cause was
+    // finally legible.
+    //
+    // Twenty seconds is not "wait longer until it passes": it is headroom over the four-second
+    // ceiling that actually governs, so a genuinely hung assertion still fails as an assertion,
+    // with its own message, rather than as an anonymous timeout.
+    testTimeout: 20_000,
+    hookTimeout: 20_000,
+
     projects: [
       {
         // `node`, not `jsdom`: nothing in the client touches the DOM. The one browser API it uses —
@@ -156,26 +189,28 @@ export default defineConfig({
       ],
       // MEASURED, NOT ASPIRED TO.
       //
-      // What the suite actually achieved when this landed:
+      // What the suite achieved on CI when Wave 29 landed — 862 tests over 65 files, measured on a
+      // clean runner because this is the only place it can be measured reliably:
       //
-      //     statements 70.63 · branches 74.42 · functions 69.52 · lines 72.11
+      //     statements 78.38 · branches 78.41 · functions 76.08 · lines 79.96
       //
-      // The floors sit about a point under each, which is deliberate on both sides. A floor set at
-      // the measured value flaps — one refactor that moves a branch turns the lane red for a reason
-      // nobody chose. A floor set far under is decoration. A point of slack absorbs noise and still
-      // fails on a real regression.
+      // Up from 70.63 / 74.42 / 69.52 / 72.11 when `ui#8` set the first floors. Wave 28's note
+      // predicted the jump and said why the old numbers were so low: "the application's route files
+      // are inside this measurement and are all at 0%, because they are ui#5's placeholders that no
+      // test mounts... Expect these to jump through Wave 29 — raise them as they do." Twelve issues
+      // later they are pages with tests, and this is the raise.
       //
-      // **The application's route files are inside this measurement and are all at 0%**, because
-      // they are `ui#5`'s placeholders that no test mounts. That drags the total down by a lot, and
-      // it is the honest number rather than a flattering one: excluding pages would mean the floor
-      // stops noticing the day a *real* page ships untested, which is the day it most needs to.
-      // Expect these to jump through Wave 29 — raise them as they do, and never lower one without
-      // saying why in the commit that does it.
+      // The floors sit about a point under each measurement, which is deliberate on both sides. A
+      // floor set at the measured value flaps — one refactor that moves a branch turns the lane red
+      // for a reason nobody chose. A floor set far under is decoration. A point of slack absorbs
+      // noise and still fails on a real regression.
+      //
+      // **Never lower one without saying why in the commit that does it.**
       thresholds: {
-        statements: 69,
-        branches: 73,
-        functions: 68,
-        lines: 71,
+        statements: 77,
+        branches: 77,
+        functions: 75,
+        lines: 79,
       },
     },
   },

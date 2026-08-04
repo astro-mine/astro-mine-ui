@@ -1,63 +1,86 @@
 import Box from "@mui/material/Box";
+import Divider from "@mui/material/Divider";
 import Link from "@mui/material/Link";
+import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
-import { StandInBanner } from "@astro-mine/ui";
 
-import { EntryCards } from "@/components/EntryCards";
-import { NAV_GROUPS } from "@/shell/navigation";
+import { Configured } from "@/components/orientation/Configured";
+import { PersonaCards } from "@/components/orientation/PersonaCards";
 
-// Where a reader can go and get somewhere. Home is its own group, and Help has no content yet —
-// neither belongs in a list of places to start. Each card names the *section* and describes it with
-// the section index's own summary, so the wording has one source.
-const STARTING_POINTS = NAV_GROUPS.filter(
-  (group) => group.label !== "Home" && group.label !== "Help",
-).flatMap((group) => {
-  const index = group.entries[0];
-  return index === undefined
-    ? []
-    : [{ href: index.href, label: group.label, summary: index.summary }];
-});
+const GUIDE = "https://github.com/astro-mine/docs/blob/main/guide";
 
 /**
- * Home.
+ * Home — what this is, who you are, and what is configured (`ui#9`; UC-A4).
  *
- * `ui#9` replaces this with the persona router and the "what is configured" panel it describes. What
- * stands in until then does the honest version of the same job — what this is, and where the parts
- * of it are — rather than a blank pane or a dashboard of numbers nobody measured.
+ * The gap report's J6 records the failure mode this page exists to prevent: an evaluator lands
+ * somewhere, concludes *"so this is the GUI"*, and leaves. Three answers, in the order somebody
+ * arriving actually needs them — what this is, which of these people you are, and whether the thing
+ * in front of you is working.
+ *
+ * Both client components below are keyed on nothing in the address, so this route needs no
+ * `Suspense` boundary and prerenders its heading and prose whole.
  */
 export default function HomePage() {
   return (
-    <Box sx={{ maxWidth: 880, py: 4 }}>
+    <Box sx={{ py: 4, maxWidth: 1080 }}>
       <Typography variant="h3" component="h1" gutterBottom>
         Astro-Mine
       </Typography>
 
-      <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
+      <Typography variant="body1" color="text.secondary" sx={{ mb: 2, maxWidth: 880 }}>
         An open platform for designing, simulating and evaluating heterogeneous robotic swarms for
         planetary exploration and in-situ resource utilization. This is its single graphical front
         door: one application over the platform&rsquo;s REST tier.
       </Typography>
 
-      <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
-        Not everything the platform does has a page, and that is a decision rather than an omission.
-        Authoring an asset, a world, a planner stack or a safety specification has no web edge, so
-        it stays on the command line — and the pages that exist say so where it matters, rather than
-        leaving a reader hunting for a button that was never there.
+      <Typography variant="body1" color="text.secondary" sx={{ mb: 4, maxWidth: 880 }}>
+        <strong>
+          Not everything the platform does has a page, and that is a decision rather than an
+          omission.
+        </strong>{" "}
+        Authoring a robot, a world, a planner stack or a safety specification has no web edge, so it
+        stays on the command line — and the cards below say so where it applies rather than sending
+        you looking for a button that was never there.
       </Typography>
 
-      <StandInBanner title="The persona router has not been built yet">
-        <Link href="https://github.com/astro-mine/astro-mine-ui/issues/9" color="inherit">
-          ui#9
-        </Link>{" "}
-        replaces this page with the seven personas as entry points, and a panel that reports what
-        this deployment actually has configured. Until then, the sections below are the whole map.
-      </StandInBanner>
+      <Stack spacing={5}>
+        <Box>
+          <Typography variant="h6" component="h2" gutterBottom>
+            Who are you?
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2, maxWidth: 880 }}>
+            Seven people use this platform. Find yourself, then follow the row — each card goes to
+            where that journey starts.
+          </Typography>
+          <PersonaCards />
+        </Box>
 
-      <Typography variant="h6" component="h2" sx={{ mt: 4, mb: 1.5 }}>
-        Where to start
-      </Typography>
+        <Divider />
 
-      <EntryCards entries={STARTING_POINTS} />
+        <Configured />
+
+        <Divider />
+
+        <Box>
+          <Typography variant="h6" component="h2" gutterBottom>
+            Where to read more
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1, maxWidth: 880 }}>
+            The user guide is the long-form answer and is maintained separately. This application
+            links to it rather than restating it — a second copy of an explanation is a second copy
+            to keep true.
+          </Typography>
+          <Stack direction="row" spacing={3} sx={{ flexWrap: "wrap" }}>
+            <Link href={`${GUIDE}/getting-started.md`}>Getting started</Link>
+            <Link href={`${GUIDE}/tutorials`}>The tutorials</Link>
+            <Link href={`${GUIDE}/concepts`}>Concepts</Link>
+            <Link href={`${GUIDE}/reference/cli.md`}>The CLI reference</Link>
+            <Link component="a" href="/help">
+              Concepts and the CLI, in short
+            </Link>
+          </Stack>
+        </Box>
+      </Stack>
     </Box>
   );
 }

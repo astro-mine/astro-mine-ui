@@ -217,6 +217,34 @@ jobs:
           fi
           echo "Cesium staged locally ($(du -sh apps/console/out/cesium | cut -f1)); its chunk is runtime-only."
 
+      # ui#13: "The replay chunk is **not** in the leaderboard route's bundle, asserted against the
+      # build output." The step above proves no *prerendered* route preloads Cesium; this one names
+      # the route the criterion is about, because that is the one with a person behind it — a
+      # student who opened a leaderboard to look at a number must not download a globe and an MCAP
+      # reader to do it.
+      #
+      # Asserted on the referenced scripts rather than on a chunk name, because chunk names are
+      # content hashes and change every build.
+      # ui#17 asks the same of the candidate-inspection pane. Both heavy panes go through
+      # `next/dynamic` and both are checked the same way, so the route list below covers the two of
+      # them: `/design/study` mounts the inspection pane and `/bench/submission` mounts the replay,
+      # and neither chunk may reach a route that draws no globe.
+      - name: The replay viewer is absent from the routes that do not draw one
+        run: |
+          for route in bench/leaderboard registry compute design design/new help; do
+            page="apps/console/out/$route/index.html"
+            test -f "$page" || { echo "::error::$page is missing — this assertion has lost its subject"; exit 1; }
+            for script in $(grep -o '/_next/static/[^"'"'"']*\.js' "$page" | sort -u); do
+              file="apps/console/out${script}"
+              test -f "$file" || continue
+              if grep -q 'CESIUM_BASE_URL\|@mcap/core\|McapIndexedReader' "$file"; then
+                echo "::error::/$route references $script, which carries a 3D viewer. Something imports @astro-mine/view, ./ReplayScene or ./InspectionScene statically instead of through next/dynamic — see components/bench/ReplayPane.tsx and components/design/InspectionPane.tsx."
+                exit 1
+              fi
+            done
+          done
+          echo "The 3D viewers are loaded on demand only; no route that draws no globe references one."
+
       # Built once, used by three lanes. `include-hidden-files` matters: the export has none today,
       # but the default silently drops dotfiles and a missing one would surface as a mystery 404.
       #

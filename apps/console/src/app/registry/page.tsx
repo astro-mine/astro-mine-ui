@@ -1,6 +1,9 @@
+import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
 import type { Metadata } from "next";
+import { Suspense } from "react";
 
-import { SectionIndex } from "@/components/SectionIndex";
+import { BrowseRegistry } from "@/components/registry/BrowseRegistry";
 import { requireEntry } from "@/shell/navigation";
 
 const ENTRY = requireEntry("/registry");
@@ -8,22 +11,33 @@ const ENTRY = requireEntry("/registry");
 export const metadata: Metadata = { title: ENTRY.label };
 
 /**
- * The Registry section index.
+ * Registry — search over the commons (`ui#10`; UC-G2).
  *
- * `ui#10` replaces this with the catalog search it describes — this is the landing page until then,
- * and the section's own description afterwards.
+ * **The heading and the standing prose live here, above the boundary, and that is the pattern
+ * rather than a detail.** `useSearchParams` opts its whole subtree out of prerendering, so
+ * everything inside the `Suspense` below contributes nothing to the exported HTML. Put the title
+ * inside it and the static export ships a page with no heading — which the build lane rejects
+ * outright ("Every route prerenders its own content"), because a route that paints blank until
+ * hydration is the failure that check exists to catch.
+ *
+ * So the split is: what is true of the page regardless of the address is prerendered; only the
+ * search itself, which genuinely depends on the query string, waits for JavaScript.
  */
-export default function RegistryIndexPage() {
+export default function RegistryPage() {
   return (
-    <SectionIndex href="/registry" title="Registry">
-      The commons&rsquo; front door. Everything the platform can run is stored as a{" "}
-      <strong>content-addressed artifact</strong> — a world, a robot, a policy, a published campaign
-      — and the registry is where you find one, learn what produced it, and pin the exact bytes.
-      Search and browsing are open: reading needs no account.
-      <br />
-      <br />
-      The digest is the identity. A tag or a version spec is a <em>query</em> that resolves to one,
-      and it is the digest, not the name, that makes a result reproducible a year from now.
-    </SectionIndex>
+    <Box sx={{ py: 4 }}>
+      <Typography variant="h4" component="h1" gutterBottom>
+        Registry
+      </Typography>
+      <Typography variant="body1" color="text.secondary" sx={{ mb: 3, maxWidth: 880 }}>
+        Everything the platform can run is stored as a <strong>content-addressed artifact</strong> —
+        a world, a robot, a policy, a published campaign. Search is open:{" "}
+        <strong>reading needs no account</strong>, and nothing here will ask you for one.
+      </Typography>
+
+      <Suspense fallback={null}>
+        <BrowseRegistry />
+      </Suspense>
+    </Box>
   );
 }

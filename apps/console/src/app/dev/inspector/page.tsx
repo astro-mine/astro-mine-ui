@@ -9,7 +9,8 @@ export const metadata: Metadata = { title: "Inspector registry smoke test" };
 /**
  * Every state the artifact inspector registry can be in, rendered (ui#7).
  *
- * **A scaffold, and it says so** — the second one, following `/dev/globe`, and for the same reason.
+ * **A scaffold, and it says so** — the last one. `/dev/globe` was the other, and `ui#17` deleted it
+ * when a real page began mounting a globe.
  * `ui#7` fills `@astro-mine/inspectors` with a registry, four panels and `InspectorSlot`, and the
  * page that mounts any of them is `ui#10`. Without a route, the whole distribution's most
  * user-visible new behaviour — what a reader sees when no inspector claims their artifact, or when
