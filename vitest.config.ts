@@ -189,26 +189,28 @@ export default defineConfig({
       ],
       // MEASURED, NOT ASPIRED TO.
       //
-      // What the suite actually achieved when this landed:
+      // What the suite achieved on CI when Wave 29 landed — 862 tests over 65 files, measured on a
+      // clean runner because this is the only place it can be measured reliably:
       //
-      //     statements 70.63 · branches 74.42 · functions 69.52 · lines 72.11
+      //     statements 78.38 · branches 78.41 · functions 76.08 · lines 79.96
       //
-      // The floors sit about a point under each, which is deliberate on both sides. A floor set at
-      // the measured value flaps — one refactor that moves a branch turns the lane red for a reason
-      // nobody chose. A floor set far under is decoration. A point of slack absorbs noise and still
-      // fails on a real regression.
+      // Up from 70.63 / 74.42 / 69.52 / 72.11 when `ui#8` set the first floors. Wave 28's note
+      // predicted the jump and said why the old numbers were so low: "the application's route files
+      // are inside this measurement and are all at 0%, because they are ui#5's placeholders that no
+      // test mounts... Expect these to jump through Wave 29 — raise them as they do." Twelve issues
+      // later they are pages with tests, and this is the raise.
       //
-      // **The application's route files are inside this measurement and are all at 0%**, because
-      // they are `ui#5`'s placeholders that no test mounts. That drags the total down by a lot, and
-      // it is the honest number rather than a flattering one: excluding pages would mean the floor
-      // stops noticing the day a *real* page ships untested, which is the day it most needs to.
-      // Expect these to jump through Wave 29 — raise them as they do, and never lower one without
-      // saying why in the commit that does it.
+      // The floors sit about a point under each measurement, which is deliberate on both sides. A
+      // floor set at the measured value flaps — one refactor that moves a branch turns the lane red
+      // for a reason nobody chose. A floor set far under is decoration. A point of slack absorbs
+      // noise and still fails on a real regression.
+      //
+      // **Never lower one without saying why in the commit that does it.**
       thresholds: {
-        statements: 69,
-        branches: 73,
-        functions: 68,
-        lines: 71,
+        statements: 77,
+        branches: 77,
+        functions: 75,
+        lines: 79,
       },
     },
   },
