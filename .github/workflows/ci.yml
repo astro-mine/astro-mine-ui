@@ -383,6 +383,11 @@ jobs:
       github.event_name == 'push' ||
       contains(github.event.pull_request.labels.*.name, 'journeys')
     runs-on: ubuntu-latest
+    # A bound, because this lane can wait on a real backend and a real evaluator. Without it the job
+    # inherits GitHub's 360-minute default, so a submission that never returns holds a runner for six
+    # hours. Generous against the observed cost — the whole job is ~3 minutes, most of it installing
+    # the platform — and still far short of a wasted afternoon.
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
 

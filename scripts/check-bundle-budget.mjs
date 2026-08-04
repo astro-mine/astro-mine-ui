@@ -38,7 +38,7 @@ const OUT = resolve(REPO, "apps/console/out");
  *
  * Raising this is a decision that belongs in the commit that needs it, with the reason beside it.
  */
-const DEFAULT_BUDGET_KIB = 1500;
+const DEFAULT_BUDGET_KIB = 900; // TEMPORARY — proving the gate rejects; reverted next commit
 
 /**
  * Per-route budgets, for routes that have earned a different one.
