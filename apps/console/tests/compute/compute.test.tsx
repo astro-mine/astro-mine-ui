@@ -43,6 +43,9 @@ const NO_BACKENDS = api.cloudBackends({ body: {} });
 const jobSpec = () => ({
   image: { repository: "ghcr.io/astro-mine/runner", digest: "sha256:abc", tag: "0.5.0" },
   command: ["astro-mine", "bench", "run"],
+  // Required by the generated type even though the document gives it a default — the response
+  // shape is what a server sends back, and a server fills its defaults in.
+  distributed: false,
 });
 
 describe("the backends page", () => {
@@ -129,12 +132,22 @@ describe("expanding a sweep", () => {
 });
 
 describe("a compiled plan", () => {
-  it("is rendered verbatim, and says why", async () => {
-    // The compile routes declare `additionalProperties: true` and no schema. Laying invented
-    // headings over an unknown shape would be the front end asserting a contract that does not
-    // exist.
+  it("names the object it compiles to, and shows the engine's spec as a document", async () => {
+    // astro-mine-api#12 gave the three routes a declared envelope. What stayed open is `spec`,
+    // which belongs to Kubernetes, KubeRay or Argo — so the page names what it can and shows what
+    // it must not claim to know.
     use(BACKENDS);
-    use(api.cloudCompileSweep({ body: { plan: "whatever the server sends" } }));
+    use(
+      api.cloudCompileSweep({
+        body: {
+          apiVersion: "argoproj.io/v1alpha1",
+          kind: "Workflow",
+          metadata: { name: "sweep-abc", namespace: "astro-mine", labels: {}, annotations: {} },
+          // The engine's own schema, left open by the contract on purpose.
+          spec: { entrypoint: "fan-out", templates: [] },
+        },
+      }),
+    );
     renderWithApi(<Jobs />);
 
     const user = menuUser();
@@ -143,8 +156,11 @@ describe("a compiled plan", () => {
     await user.click(button);
 
     expect(await screen.findByText("Compiled sweep")).toBeInTheDocument();
-    expect(screen.getByText(/declare no response schema/)).toBeInTheDocument();
-    expect(screen.getByText(/whatever the server sends/)).toBeInTheDocument();
+    expect(screen.getByText("Workflow")).toBeInTheDocument();
+    expect(screen.getByText("sweep-abc")).toBeInTheDocument();
+    // The spec is rendered as the foreign document it is, not under headings this build invented.
+    expect(screen.getByText(/entrypoint/)).toBeInTheDocument();
+    expect(screen.getByText(/rather than this platform/)).toBeInTheDocument();
   });
 });
 
@@ -171,6 +187,7 @@ describe("submitting a job", () => {
           exit_code: 0,
           run_context_address: "sha256:runcontext",
           run_context: {
+            schema_version: "0.1",
             code_version: "0.5.0",
             environment: {},
             outputs: {},
@@ -203,6 +220,7 @@ describe("submitting a job", () => {
           exit_code: 0,
           run_context_address: "sha256:runcontext",
           run_context: {
+            schema_version: "0.1",
             code_version: "0.5.0",
             environment: {},
             outputs: {},
@@ -240,6 +258,7 @@ describe("submitting a job", () => {
           exit_code: 0,
           run_context_address: "sha256:x",
           run_context: {
+            schema_version: "0.1",
             code_version: "0.5.0",
             environment: {},
             outputs: {},

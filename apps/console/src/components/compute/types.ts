@@ -2,10 +2,13 @@
 //
 // Aliases of the generated types, never copies — `conventions.md` §3.1 and the workspace gate.
 //
-// **Note what is missing.** There is no `CompiledJob` or `CompiledSweep` here, because the API
-// declares none: `cloud_compile_job`, `cloud_compile_sweep` and `cloud_compile_workflow` answer
-// `additionalProperties: true` with no schema. Inventing a local type for them would be exactly the
-// hand-written mirror the workspace gate exists to forbid — and it would be a mirror of nothing.
+// **`CompiledManifest` arrived with astro-mine-api#12.** The three compile routes used to answer
+// `additionalProperties: true` with no schema, so this file deliberately declared nothing for them
+// and the preview rendered a document. They now answer one declared shape — the routes produce
+// four different Kubernetes objects but one envelope, differing only in `kind` and the contents of
+// `spec`. `spec` stays open on purpose: it is Kubernetes', KubeRay's and Argo's schema, not this
+// platform's, and declaring somebody else's contract is the mistake the old note was guarding
+// against.
 
 import type { components } from "@astro-mine/api-client";
 
@@ -20,3 +23,6 @@ export type SweepExpansion = components["schemas"]["SweepExpansion"];
 
 /** What a submission produced. */
 export type RunResult = components["schemas"]["RunResult"];
+
+/** What a job, sweep or workflow compiles to: a Kubernetes object with an open `spec`. */
+export type CompiledManifest = components["schemas"]["CompiledManifest"];

@@ -343,11 +343,9 @@ export interface paths {
      * Compile Job
      * @description Compile a JobSpec to its engine manifest (auto-routed unless *engine* is given).
      *
-     *     **Deliberately an open object.** The response is an execution engine's own manifest — an
-     *     Argo ``Workflow`` or a Kubernetes ``Job`` — whose schema belongs to that engine and changes
-     *     with it. Declaring a closed model here would either be a lie the first time an engine added
-     *     a field, or a second copy of someone else's API that this repository would have to chase.
-     *     A client that needs to read one of these knows which engine it asked for.
+     *     A ``batch/v1`` Job or a ``ray.io/v1`` RayJob depending on what
+     *     :func:`~astro_mine.cloud.engines.select_engine` routes *job* to; :class:`CompiledManifest`
+     *     is the shape either way.
      */
     post: operations["cloud_compile_job"];
     delete?: never;
@@ -367,9 +365,7 @@ export interface paths {
     put?: never;
     /**
      * Compile Sweep Endpoint
-     * @description Compile a SweepSpec to its Argo fan-out Workflow.
-     *
-     *     An open object for the same reason as ``compile_job`` above: this is Argo's schema.
+     * @description Compile a SweepSpec to its Argo fan-out Workflow -- one task per expanded variant.
      */
     post: operations["cloud_compile_sweep"];
     delete?: never;
@@ -409,9 +405,7 @@ export interface paths {
     put?: never;
     /**
      * Compile Workflow Endpoint
-     * @description Compile a WorkflowSpec to its Argo DAG Workflow.
-     *
-     *     An open object for the same reason as ``compile_job`` above: this is Argo's schema.
+     * @description Compile a WorkflowSpec to its Argo DAG Workflow -- one task per step, edges as deps.
      */
     post: operations["cloud_compile_workflow"];
     delete?: never;
@@ -1093,6 +1087,60 @@ export interface components {
       pareto_front: string[];
       /** Study Id */
       study_id: string;
+    };
+    /**
+     * CompiledManifest
+     * @description A spec compiled to the cluster object that would run it.
+     *
+     *     The response of all three ``compile`` routes: a ``batch/v1`` ``Job`` or a ``ray.io/v1``
+     *     ``RayJob`` from ``/cloud/jobs/compile`` depending on which engine the job routes to, and an
+     *     ``argoproj.io/v1alpha1`` ``Workflow`` from ``/cloud/sweeps/compile`` and
+     *     ``/cloud/workflows/compile``. The manifest is served as it would be applied, so ``apiVersion``,
+     *     ``kind`` and ``metadata`` can be read without knowing which of those you asked for.
+     *
+     *     ``spec`` is deliberately an open object: it is the schema of whichever engine compiled it, and
+     *     ``kind`` is what says which one that is. The model is open for the same reason -- an engine
+     *     outside this repository may emit fields nothing here has heard of, and they are passed through
+     *     rather than dropped.
+     */
+    CompiledManifest: {
+      /** Apiversion */
+      apiVersion: string;
+      /** Kind */
+      kind: string;
+      metadata: components["schemas"]["CompiledManifestMetadata"];
+      /** Spec */
+      spec: {
+        [key: string]: unknown;
+      };
+    } & {
+      [key: string]: unknown;
+    };
+    /**
+     * CompiledManifestMetadata
+     * @description A compiled object's ``metadata`` -- the half of a manifest Astro-Mine writes.
+     *
+     *     Built the same way for a Kubernetes ``Job``, a KubeRay ``RayJob`` and an Argo ``Workflow``, and
+     *     the keys inside it are the platform's own label schema (``app.kubernetes.io/*``,
+     *     ``astro-mine.org/*``, plus Kueue's queue label). This is the part of a compiled object that can
+     *     be read without knowing which engine produced it: what the run will be called, where it lands,
+     *     and whose quota it is charged to.
+     */
+    CompiledManifestMetadata: {
+      /** Annotations */
+      annotations?: {
+        [key: string]: string;
+      };
+      /** Labels */
+      labels?: {
+        [key: string]: string;
+      };
+      /** Name */
+      name: string;
+      /** Namespace */
+      namespace: string;
+    } & {
+      [key: string]: unknown;
     };
     /**
      * ContingencyBranch
@@ -2084,8 +2132,7 @@ export interface components {
      * SweepExpansion
      * @description A sweep's deterministic expansion into concrete jobs.
      *
-     *     Unlike the three ``compile`` routes below, this shape belongs to Astro-Mine rather than to an
-     *     execution engine, so it is declared rather than left open.
+     *     Astro-Mine's own shape end to end: what a SweepSpec *means*, before any engine sees it.
      */
     SweepExpansion: {
       /** Jobs */
@@ -3131,9 +3178,7 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          "application/json": {
-            [key: string]: unknown;
-          };
+          "application/json": components["schemas"]["CompiledManifest"];
         };
       };
       /** @description The request did not validate; `errors` carries the field-level detail. */
@@ -3177,9 +3222,7 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          "application/json": {
-            [key: string]: unknown;
-          };
+          "application/json": components["schemas"]["CompiledManifest"];
         };
       };
       /** @description The request did not validate; `errors` carries the field-level detail. */
@@ -3265,9 +3308,7 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          "application/json": {
-            [key: string]: unknown;
-          };
+          "application/json": components["schemas"]["CompiledManifest"];
         };
       };
       /** @description The request did not validate; `errors` carries the field-level detail. */

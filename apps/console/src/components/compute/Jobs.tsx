@@ -7,13 +7,13 @@
 // and finding out afterwards what they were. So the expansion is shown, **counted plainly**, and
 // scrollable — a number a reader can react to before they commit compute to it.
 //
-// **The compile routes answer an untyped object, and this page says so.** `cloud_compile_job`,
-// `cloud_compile_sweep` and `cloud_compile_workflow` are declared
-// `additionalProperties: true` with no schema — `ui#19` names a typed response as a dependency and
-// records it as fixed "in the API issue", which has not landed: astro-mine-api serves the same
-// untyped object at HEAD and no issue is open for it. Rather than invent a shape, the preview
-// renders the document as the API sent it and says that is what it is doing. `cloud_expand_sweep`
-// **is** typed (`SweepExpansion`), and it carries the part the issue calls the headline value.
+// **The compile routes are typed now.** `ui#19` named that as a dependency and recorded it as
+// already fixed "in the API issue"; there was no such issue, so one was filed
+// (astro-mine-api#12) and landed. All three routes answer a `CompiledManifest` — a Kubernetes
+// object with `apiVersion`, `kind`, `metadata` and an open `spec` — so the preview renders the
+// envelope as fields and the spec as the foreign document it genuinely is. That last part is not a
+// leftover: `spec` is Kubernetes', KubeRay's and Argo's schema rather than this platform's, and
+// laying our headings over theirs would be the same mistake in the other direction.
 //
 // **Nothing here computes a plan the API did not return.** No client-side grid expansion, no
 // estimated counts, no "this will probably take". The page previews and submits; the scheduling is
@@ -38,7 +38,7 @@ import { useApiAction } from "@/data/useApiAction";
 import { useApiQuery } from "@/data/useApiQuery";
 
 import { readJsonText, type JsonText } from "./readJsonText";
-import type { JobSpec, RunResult, SweepExpansion, SweepSpec } from "./types";
+import type { CompiledManifest, JobSpec, RunResult, SweepExpansion, SweepSpec } from "./types";
 
 type Mode = "job" | "sweep";
 
@@ -261,28 +261,33 @@ function Expansion({ expansion }: { expansion: SweepExpansion }) {
 }
 
 /**
- * A compiled plan, rendered as the untyped document it is.
+ * What a specification compiles to.
  *
- * **Not dressed up.** The route declares `additionalProperties: true` and nothing else, so this
- * build cannot know which fields it has; presenting invented headings over an unknown shape would
- * be the front end asserting a contract that does not exist. The note is not an apology — it is the
- * reason a reader is looking at JSON rather than a table.
+ * **The envelope as fields, the spec as a document — and that split is the contract's own rather
+ * than a compromise.** `apiVersion`, `kind` and `metadata` belong to this platform: `metadata` is
+ * built by `astro_mine.cloud.k8s.object_meta` out of its own label schema, identically for every
+ * engine, so it is named. `spec` is declared open because it is Kubernetes', KubeRay's or Argo's
+ * schema depending on which engine routed the job, and putting our headings over theirs would be
+ * the same mistake the untyped version made, in the other direction.
  */
-function CompiledPlan({ plan, what }: { plan: unknown; what: "job" | "sweep" }) {
+function CompiledPlan({ plan, what }: { plan: CompiledManifest; what: "job" | "sweep" }) {
   return (
     <Card variant="outlined">
       <CardContent>
         <Typography variant="overline" color="text.secondary" component="h2">
           Compiled {what}
         </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Shown as the API returned it.{" "}
-          <strong>The compile routes declare no response schema</strong> — the document is typed as
-          an open object in the contract — so this page renders it verbatim rather than laying
-          invented headings over a shape it cannot know. Typing those responses is an API change,
-          tracked separately.
+        <Typography variant="body2" sx={{ mb: 1 }}>
+          This compiles to a <strong>{plan.kind}</strong> ({plan.apiVersion}) named{" "}
+          <Box component="code">{plan.metadata.name}</Box> in namespace{" "}
+          <Box component="code">{plan.metadata.namespace}</Box>.
         </Typography>
-        <Document value={plan} />
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          The <Box component="code">spec</Box> below is the engine&rsquo;s own — Kubernetes&rsquo;,
+          KubeRay&rsquo;s or Argo&rsquo;s schema rather than this platform&rsquo;s — so it is shown
+          as the document it is rather than under headings this build would be inventing.
+        </Typography>
+        <Document value={plan.spec} />
       </CardContent>
     </Card>
   );
