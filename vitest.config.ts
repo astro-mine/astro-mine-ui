@@ -63,6 +63,19 @@ const componentDefaults = {
 
 export default defineConfig({
   test: {
+    // **A cap, added when Wave 29 made the suite big enough to need one.**
+    //
+    // The console project grew from three test files to eighteen, each of which stands up jsdom,
+    // an MSW interceptor and a Material UI tree. Vitest's default is one fork per core, and on a
+    // machine where those forks are competing for a Windows drive the pool started failing to
+    // start workers at all — `[vitest-pool-runner]: Timeout waiting for worker to respond`, which
+    // surfaces as an unrelated test file "failing" and reads like a code fault.
+    //
+    // Four is enough to keep the run parallel and few enough that each worker gets to finish
+    // booting. Raise it if the wall-clock becomes the complaint; do not remove it without checking
+    // that the pool still starts under load.
+    maxWorkers: 4,
+
     projects: [
       {
         // `node`, not `jsdom`: nothing in the client touches the DOM. The one browser API it uses —
