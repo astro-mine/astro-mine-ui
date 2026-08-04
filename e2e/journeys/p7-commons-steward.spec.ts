@@ -67,7 +67,13 @@ test("retracts a submission and finds the act in the audit trail", async ({ page
   await dialog.getByRole("button", { name: "Retract", exact: true }).click();
 
   // ...and it says what happened, rather than leaving the reader to reload and infer it.
-  await expect(page.getByRole("status")).toContainText(/Retracted/, { timeout: 60_000 });
+  //
+  // Filtered by its words, not by role alone: `status` is a live region and the page carries several
+  // — the route announcer, a digest's copy confirmation — so a bare role match resolves to four
+  // elements and fails on strict mode without ever having looked at the retraction.
+  await expect(page.getByRole("status").filter({ hasText: /Retracted/ })).toBeVisible({
+    timeout: 60_000,
+  });
 
   // --- and the trail carries it ------------------------------------------------------------------
 
