@@ -77,6 +77,25 @@ export default defineConfig({
     // transition, which is fixed where it happens rather than by starving the pool.
     maxWorkers: 4,
 
+    // **The test budget has to be larger than the assertion budget, and it was not.**
+    //
+    // `apps/console/tests/setup.tsx` raises Testing Library's async ceiling to four seconds,
+    // because a page test here resolves the runtime configuration, builds a client, goes through an
+    // MSW interceptor and re-renders a Material UI tree. Vitest's default `testTimeout` is *five*
+    // seconds — so a single four-second wait consumed almost the whole test, and anything that
+    // needed a second one failed on the clock rather than on the assertion.
+    //
+    // Locally that was rare enough to look like flake. On CI, with v8 coverage instrumenting every
+    // module, it took out sixteen tests at once — every one of them reporting almost exactly
+    // 5000 ms, which is what a `testTimeout` failure looks like and is how the real cause was
+    // finally legible.
+    //
+    // Twenty seconds is not "wait longer until it passes": it is headroom over the four-second
+    // ceiling that actually governs, so a genuinely hung assertion still fails as an assertion,
+    // with its own message, rather than as an anonymous timeout.
+    testTimeout: 20_000,
+    hookTimeout: 20_000,
+
     projects: [
       {
         // `node`, not `jsdom`: nothing in the client touches the DOM. The one browser API it uses —
