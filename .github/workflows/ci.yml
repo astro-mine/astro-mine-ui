@@ -6,6 +6,11 @@ on:
   push:
     branches: [main]
   pull_request:
+    # `labeled` as well as the defaults, so the `journeys` label *does something when applied*. The
+    # opt-in lane below is gated on it, and GitHub's default pull-request trigger is
+    # opened/synchronize/reopened — without this, labelling a pull request schedules nothing and the
+    # lane silently waits for the next push, which reads as the label being ignored.
+    types: [opened, synchronize, reopened, labeled]
 
 # Read-only by default (org security baseline).
 permissions:
@@ -249,8 +254,8 @@ jobs:
       # but the default silently drops dotfiles and a missing one would surface as a mystery 404.
       #
       # The artifact actions are the one pair here that is genuinely exercised rather than merely
-      # present — `bundle`, `e2e` and `a11y` all download what this uploads, so a major bump that
-      # broke the handoff would take three lanes with it rather than passing quietly.
+      # present — `bundle`, `e2e`, `a11y` and `journeys` all download what this uploads, so a major
+      # bump that broke the handoff would take four lanes with it rather than passing quietly.
       - name: Upload the export
         uses: actions/upload-artifact@v7
         with:
@@ -302,8 +307,20 @@ jobs:
       - name: Install Chromium
         run: pnpm exec playwright install --with-deps chromium
 
-      - name: Persona smoke journeys
-        run: pnpm e2e e2e/smoke.spec.ts
+      # The `degraded` project: the smoke floor and — since ui#20 — the degraded journey, which
+      # asserts that with **no API configured at all** every route renders, keeps its navigation and
+      # names the missing backend with a remedy. It needs no Python and no seed, which is why it is
+      # a separate lane from `journeys` below rather than a phase of it.
+      - name: Smoke and the degraded journey
+        # Named specs rather than the whole project: `pnpm e2e` also sweeps axe, which is the `a11y`
+        # job's work and runs there in parallel. Locally the bare command is the right default —
+        # one command, the whole browser lane — and here it would just be the same minutes twice.
+        #
+        # The scripts spell it `--project=degraded`, not `--project degraded`, and that is what makes
+        # passing files here work at all: `--project` takes a *list*, so with a space the paths
+        # append to it and Playwright reports `Project(s) "e2e/smoke.spec.ts" not found`. Caught by
+        # this lane on its first run, which is the argument for the lane.
+        run: pnpm e2e e2e/smoke.spec.ts e2e/degraded.spec.ts
 
       - name: Upload the report on failure
         if: failure()
@@ -317,12 +334,14 @@ jobs:
     name: Accessibility (routes, both schemes)
     needs: build
     runs-on: ubuntu-latest
-    # NOT YET A GATE, and this is the one place that is written down as a workflow setting rather
-    # than as prose. `ui#8` ships the lane runnable; **Wave 30 removes this line** once there are
-    # real pages behind the routes and any finding it reports has been fixed rather than baselined.
-    # Until then it reports, in colour, on every pull request — which is how the findings get known
-    # before they are enforced.
-    continue-on-error: true
+    # **A GATE, since ui#20.** `ui#8` shipped this lane with `continue-on-error: true` and a note
+    # saying Wave 30 would remove the line once there were real pages behind the routes and any
+    # finding had been fixed rather than baselined. Both happened: Wave 29 built the pages, and the
+    # sweep is clean across every route in both colour schemes — so the line is gone.
+    #
+    # There is deliberately no allowlist and no baseline file. An accessibility claim with an
+    # exceptions list is a claim about the exceptions; the moment one violation is tolerated, the
+    # lane's answer stops being yes-or-no and starts needing interpretation.
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -342,3 +361,100 @@ jobs:
       # because it samples pixels and jsdom has no paint engine.
       - name: axe over every route, light and dark
         run: pnpm e2e:a11y
+
+  # ── the persona journeys, against a real seeded API ───────────────────────────────────────────
+  #
+  # **The only lane in this repository that proves the contract holds.** Every other test that
+  # touches the API drives a fake generated from the same OpenAPI document as the client, so the two
+  # cannot disagree — which is exactly why they also cannot catch a route that does not exist, a
+  # deployment that mounts nothing, or a response the document describes and the service never
+  # sends. This one brings up `astro-mine-api` for real, seeds it, and drives each persona journey
+  # through the browser.
+  #
+  # **It runs on `main`, and on a pull request only when labelled `journeys`.** The cost is honest:
+  # it installs the platform from git, which is a maturin build plus torch, ortools and usd-core, so
+  # it is minutes rather than seconds even with uv's cache warm. That is a real trade — a journey
+  # can break on a pull request and only speak after merge — and it is why the label exists: any
+  # change that touches a page, the client or the API contract should carry it.
+  journeys:
+    name: Persona journeys (seeded API)
+    needs: build
+    if: >-
+      github.event_name == 'push' ||
+      contains(github.event.pull_request.labels.*.name, 'journeys')
+    runs-on: ubuntu-latest
+    # A bound, because this lane can wait on a real backend and a real evaluator. Without it the job
+    # inherits GitHub's 360-minute default, so a submission that never returns holds a runner for six
+    # hours. Generous against the observed cost — the whole job is ~3 minutes, most of it installing
+    # the platform — and still far short of a wasted afternoon.
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+
+      # The API tier, at its default branch. Not a pin: the front end vendors the API's OpenAPI
+      # snapshot and a separate lane already fails on drift, so the question this lane answers is
+      # "does the application work against the API as it is now", and a pinned checkout would answer
+      # a different one. CORE_REPO_TOKEN because it is private during incubation.
+      - name: Check out astro-mine-api
+        uses: actions/checkout@v7
+        with:
+          repository: astro-mine/astro-mine-api
+          path: .api
+          token: ${{ secrets.CORE_REPO_TOKEN }}
+          # hatch-vcs derives the version from git history; a shallow clone has none.
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+          enable-cache: true
+
+      # astro-mine-platform is a private repo pinned as a uv git source; rewrite HTTPS GitHub
+      # fetches so `uv sync` can resolve it.
+      - name: Authenticate to private dependencies
+        env:
+          CORE_REPO_TOKEN: ${{ secrets.CORE_REPO_TOKEN }}
+        run: |
+          git config --global \
+            url."https://x-access-token:${CORE_REPO_TOKEN}@github.com/".insteadOf \
+            "https://github.com/"
+
+      # NOT `--locked`, and `-U` on the one floating source: astro-mine-api deliberately tracks the
+      # platform's `main` (api.md §7), so this resolves the platform commit that is current.
+      - name: Install the API and the platform
+        working-directory: .api
+        run: uv sync --upgrade-package astro-mine-platform
+
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: static-export
+          path: apps/console/out
+
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      # `scripts/journeys-up.mjs` seeds, serves the JWKS and runs uvicorn; Playwright starts it as a
+      # webServer and waits for /healthz. The seed root defaults to the runner's temp directory,
+      # which matters: Bench scores a submission in a Landlock-confined subprocess, and the
+      # confinement needs a filesystem that honours it.
+      - name: Drive each persona journey
+        env:
+          ASTRO_MINE_API_REPO: ${{ github.workspace }}/.api
+          ASTRO_MINE_PYTHON: ${{ github.workspace }}/.api/.venv/bin/python
+        run: pnpm e2e:journeys
+
+      - name: Upload the report on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report-journeys
+          path: playwright-report
+          retention-days: 7

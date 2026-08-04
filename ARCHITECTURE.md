@@ -255,12 +255,41 @@ not think about.
 | **Contrast & colour vision** | a WCAG pairing or a categorical-palette pair that fails                                                     |
 | **Build & emitted bytes**    | a build error, a missing export, unstyled first paint, a route that prerenders nothing, or Cesium preloaded |
 | **Bundle budget**            | a route exceeding its per-route JavaScript budget                                                           |
-| **E2E**                      | a route that does not serve, paint its own heading, or hydrate cleanly                                      |
-| **Accessibility**            | an axe violation on any route in either scheme — **reporting, not gating, until Wave 30**                   |
+| **E2E (degraded)**           | a route that does not serve, paint its own heading, hydrate cleanly, or explain a missing backend           |
+| **Accessibility**            | an axe violation on any route in either scheme                                                              |
+| **Persona journeys**         | a broken journey against a **real seeded API** — on `main`, and on a pull request labelled `journeys`       |
 
 Each is its own job, so a red check names itself. **Every gate carries a test proving it can
 reject**, against fixture trees or by mutating the real one and restoring it; a gate nobody has
 watched fail is a gate nobody should trust.
+
+### The browser lane has two projects, and the difference between them is one file
+
+`ui#20` split it. Both drive the same build — `apps/console/out`, never `next dev` — and they differ
+only in whether a `config.json` sits beside it.
+
+- **`degraded`** (`pnpm e2e`) serves the export exactly as `next build` emits it, with **no endpoint
+  configured**, because the repository ships none. Every route must still render, keep its
+  navigation, and name the missing backend with a reason and a remedy — never a spinner, never a
+  blank. That is the rule the whole design rests on, and this is the only place it is asserted of
+  the shipped bundle everywhere at once. It needs no Python, no API and no seed.
+- **`journeys`** (`pnpm e2e:journeys`) serves a copy with an endpoint and drives one journey per
+  persona against a **real, seeded `astro-mine-api`**. Faking the API here would re-assert what the
+  component lane already proved against MSW, more slowly; what only this can prove is that the
+  contract holds — that the routes exist and answer what the generated client expects. It found
+  three deployment-wiring defects on its first run (`astro-mine-api#15`, `#16`, `#17`).
+
+`scripts/journeys-up.mjs` brings the backend up: it runs the API's own `scripts/seed_demo.py`, serves
+the JWKS the token verifier fetches, and starts uvicorn. It needs `astro-mine-api` checked out beside
+this repository with its environment installed (`uv sync`), or `ASTRO_MINE_API_REPO` /
+`ASTRO_MINE_PYTHON` pointing at yours. **The seed root defaults to the system temp directory rather
+than the repository, and that is not tidiness**: Bench scores a submission in a Landlock-confined
+subprocess, and a 9p/drvfs mount — a WSL checkout under `/mnt` — denies even the paths the ruleset
+grants, so a worker rooted on one cannot start.
+
+Seeding is idempotent and the first run is slow: it publishes and signs content, runs the Studio
+design loop, and scores two submissions through the real sandboxed evaluator. Every run after that
+reuses the same root.
 
 ### Two environment facts, because both look like product defects and are not
 
@@ -279,10 +308,14 @@ On **Ubuntu 24.04 the package is `libasound2t64`**, not `libasound2` — renamed
 transition, and `apt install libasound2` fails with "no installation candidate", which reads like the
 package is unavailable rather than renamed.
 
-With that installed, `pnpm e2e` and `pnpm e2e:a11y` both run here and pass. A red browser lane is
-therefore a **finding**, not an environment quirk to shrug at. What remains true is that the
-libraries are a machine-level prerequisite rather than something the repository can install for you,
-so a fresh clone on a fresh machine meets this once.
+With that installed, `pnpm e2e`, `pnpm e2e:a11y` and `pnpm e2e:journeys` all run here and pass. A red
+browser lane is therefore a **finding**, not an environment quirk to shrug at. What remains true is
+that the libraries are a machine-level prerequisite rather than something the repository can install
+for you, so a fresh clone on a fresh machine meets this once.
+
+The journey lane adds one prerequisite of its own — `astro-mine-api` checked out with its environment
+installed — and one caveat, above: its seed root must live on a filesystem Landlock can confine, so
+it defaults to the system temp directory and not to the repository.
 
 **`jsdom` does not implement every `File` and `Blob` method.** `File.text()` and
 `Blob.slice().arrayBuffer()` are both absent, so a page reading an uploaded file must use an API

@@ -37,6 +37,12 @@ const OUT = resolve(REPO, "apps/console/out");
  * route's critical path.
  *
  * Raising this is a decision that belongs in the commit that needs it, with the reason beside it.
+ *
+ * **Watched rejecting, on this export rather than on a fixture** (`ui#20`): dropped to 900 KiB for
+ * one commit, the lane went red and named every route with its measurement and its overage —
+ * `/bench/submission is 1325.0 KiB of referenced JavaScript, over its 900 KiB budget by 425.0 KiB
+ * (20 scripts)`. Restored in the commit after. Wave 29 moved the routes from ~1300 to ~1325 KiB, so
+ * 1500 still has room in it and still fails on the thing worth failing on.
  */
 const DEFAULT_BUDGET_KIB = 1500;
 
