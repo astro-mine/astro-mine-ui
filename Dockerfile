@@ -69,14 +69,21 @@ COPY docker/headers.conf /etc/nginx/astro-mine-headers.conf
 COPY docker/10-runtime-config.sh /docker-entrypoint.d/10-runtime-config.sh
 
 # `--chown` on the COPY rather than a `chown -R` afterwards: the export is ~22 MB, and a recursive
-# chown in its own layer would duplicate every byte of it. uid 101 must own the *directory* because
-# the entrypoint writes `config.json` into it.
+# chown in its own layer would duplicate every byte of it.
 COPY --from=build --chown=101:101 /src/apps/console/out /usr/share/nginx/html
 
-# The exec bit, set here rather than relied upon from the tree: a shell script committed from a
+# **`COPY --chown` does not own the destination directory**, and that is the whole of this line.
+# `--chown` applies to the entries the COPY creates; `/usr/share/nginx/html` already exists in the
+# base image and keeps its root ownership, so uid 101 could read every file in it and still not
+# create one. Writing `config.json` needs write on the *directory*, so the container came up, the
+# entrypoint refused, and nginx never started — with the export sitting there perfectly readable.
+# One directory, not `-R`: creating a file needs no permission on the neighbours.
+#
+# The exec bit is set here rather than relied upon from the tree: a shell script committed from a
 # Windows drive lands in git as 0644, and an entrypoint hook that is not executable is silently
 # skipped — the container starts, serves, and reports itself unconfigured forever.
-RUN chmod 0755 /docker-entrypoint.d/10-runtime-config.sh
+RUN chown 101:101 /usr/share/nginx/html \
+  && chmod 0755 /docker-entrypoint.d/10-runtime-config.sh
 
 USER 101
 

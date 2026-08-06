@@ -400,17 +400,12 @@ jobs:
         run: docker build -t astro-mine-ui:ci .
 
       # A container that is up is not a container that is serving. Every assertion below runs
-      # against a server that has answered once.
+      # against a server that has answered once — and `wait-for-container.sh` prints the container's
+      # status and logs when it does not, which is the difference between a diagnosis and a bisect.
       - name: Start it unconfigured
         run: |
           docker run -d --name unconfigured -p 8080:8080 astro-mine-ui:ci
-          for _ in $(seq 1 60); do
-            curl -fsS -o /dev/null http://127.0.0.1:8080/ && exit 0
-            sleep 1
-          done
-          echo "::error::the container never served / — logs follow"
-          docker logs unconfigured
-          exit 1
+          bash .github/scripts/wait-for-container.sh unconfigured http://127.0.0.1:8080/
 
       # The state a reader meets when nobody has configured a backend. `ui.md` §7 rule 3 is asserted
       # on the pages by the degraded lane; what this asserts is that the *image* produces that state
@@ -495,10 +490,8 @@ jobs:
         run: |
           for endpoint in https://alpha.example https://beta.example; do
             docker run -d --name cfg -p 8081:8080 -e "ASTRO_MINE_API_BASE_URL=$endpoint" astro-mine-ui:ci
-            for _ in $(seq 1 60); do
-              curl -fsS -o /dev/null http://127.0.0.1:8081/ && break
-              sleep 1
-            done
+            bash .github/scripts/wait-for-container.sh cfg http://127.0.0.1:8081/ \
+              || { docker rm -f cfg; exit 1; }
 
             body=$(curl -fsS http://127.0.0.1:8081/config.json)
             [ "$body" = "{\"apiBaseUrl\":\"$endpoint\"}" ] \
@@ -522,10 +515,8 @@ jobs:
           docker run -d --name mounted -p 8082:8080 \
             -e ASTRO_MINE_API_BASE_URL=https://env.example \
             -v /tmp/config.json:/usr/share/nginx/html/config.json:ro astro-mine-ui:ci
-          for _ in $(seq 1 60); do
-            curl -fsS -o /dev/null http://127.0.0.1:8082/ && break
-            sleep 1
-          done
+          bash .github/scripts/wait-for-container.sh mounted http://127.0.0.1:8082/ \
+            || { docker rm -f mounted; exit 1; }
           body=$(curl -fsS http://127.0.0.1:8082/config.json)
           docker rm -f mounted
           case "$body" in
