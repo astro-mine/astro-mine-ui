@@ -51,9 +51,10 @@ const DEFAULT_BUDGET_KIB = 1500;
  *
  * Empty today, and an entry here should always look slightly uncomfortable: a route that needs more
  * than the default is a route carrying something the others do not, and the reason is worth a
- * sentence. `/dev/globe` and `/dev/inspector` are **not** here — they mount Cesium, and it does not
- * count, because it is loaded on demand rather than referenced by their HTML. That is the whole
- * design working.
+ * sentence. The two scaffolds that used to make the point — `/dev/globe` and `/dev/inspector`, both
+ * now deleted — were never here despite mounting Cesium, because a chunk loaded on demand is not
+ * referenced by a route's HTML and so does not count. `/design/study` and `/bench/submission` carry
+ * the same viewers today and are likewise absent. That is the whole design working.
  */
 const ROUTE_BUDGETS = {};
 

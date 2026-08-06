@@ -16,24 +16,30 @@ import { exportedRoutes } from "./routes";
 const routes = exportedRoutes();
 
 /**
- * Page errors that are Cesium's rather than this application's.
+ * **There is no third-party error allowlist any more, and its removal is not a relaxation.**
  *
- * **Found by this lane on its first CI run**, which is the argument for having it: three identical
- * parse errors on the routes that mount Cesium and on no other route. It comes out of Cesium's own bundled code as Chromium parses it, the page still loads, and
- * the globe still renders. No other lane could see it: jsdom never evaluates Cesium, and a passing
- * build says nothing about what a browser does with the bytes.
+ * This lane used to tolerate one exact message — `Octal escape sequences are not allowed in
+ * template strings.` — which Chromium emits parsing Cesium's own bundled code. It was found by this
+ * lane on its first CI run, on the routes that mount Cesium and on no other route, and it came with
+ * a companion test asserting the entry still matched something, so that it could not quietly
+ * outlive its reason.
  *
- * Matched on the **exact message** rather than by muting the routes, so that any *other* error on
- * those routes still fails — which is what let `/design/study` inherit the tolerance at `ui#17`
- * without anybody widening it.
+ * That companion is what spoke here. `ui#21` deleted `/dev/inspector`, which was the **only** route
+ * in this project that loads Cesium without a backend: `/design/study` and `/bench/submission` both
+ * mount a viewer, but neither fetches one until a world or an episode resolves against a live API.
+ * So the tolerance stopped matching anything — not because Cesium was fixed, but because its
+ * subject left with the scaffold. An allowlist matching nothing is exactly what the companion test
+ * existed to catch, and the right answer to it is deletion.
  *
- * REMOVE THIS when a Cesium upgrade stops producing it — the check below fails loudly if the entry
- * stops matching anything, so it cannot quietly outlive its reason.
+ * **What that costs, stated rather than discovered:** the `degraded` project no longer evaluates
+ * Cesium in a browser at all. That coverage lives in the `journeys` project, which drives a real
+ * seeded API and therefore actually resolves a world and an episode — on `main`, and on a pull
+ * request labelled `journeys`.
+ *
+ * If this sweep ever goes red with an octal-escape parse error, that is the history above
+ * reappearing: a route began loading Cesium with no backend. That is a finding about the route, and
+ * the fix is not to bring the allowlist back without asking why.
  */
-const KNOWN_THIRD_PARTY_ERRORS = ["Octal escape sequences are not allowed in template strings."];
-
-const unexpected = (errors: string[]) =>
-  errors.filter((message) => !KNOWN_THIRD_PARTY_ERRORS.some((known) => message.includes(known)));
 
 test("the export has routes to drive at all", () => {
   // A guard against the whole suite passing vacuously. `exportedRoutes` reads a directory, and an
@@ -59,28 +65,10 @@ for (const route of routes) {
 
       // Hydration happens after the first paint, so give React a moment to throw if it is going to.
       await page.waitForLoadState("networkidle");
-      expect(unexpected(errors), `${route} threw during hydration`).toEqual([]);
+      expect(errors, `${route} threw during hydration`).toEqual([]);
     });
   });
 }
-
-test("the third-party error allowlist still has a subject", async ({ page }) => {
-  // An allowlist that stops matching anything is an allowlist nobody removed. This asserts the
-  // entry above is still earning its place — when a Cesium upgrade fixes it, this fails and the
-  // tolerance goes with it, rather than sitting there quietly weakening the assertion above.
-  const errors: string[] = [];
-  page.on("pageerror", (error) => errors.push(error.message));
-  // `/dev/inspector` since `ui#17` deleted `/dev/globe`. It mounts Cesium through the same
-  // `components/Globe` boundary, so it is the same subject; the real globe on `/design/study`
-  // cannot be the subject here because it draws nothing until a world resolves against a live API.
-  await page.goto("/dev/inspector");
-  await page.waitForLoadState("networkidle");
-
-  expect(
-    errors.some((message) => KNOWN_THIRD_PARTY_ERRORS.some((known) => message.includes(known))),
-    "Cesium no longer produces the parse error KNOWN_THIRD_PARTY_ERRORS tolerates — delete the entry",
-  ).toBe(true);
-});
 
 test("an unknown path lands on the not-found page rather than a blank host error", async ({
   page,

@@ -32,12 +32,14 @@ const routes = exportedRoutes();
  * Routes that talk to no API and so have nothing to explain.
  *
  * A short list, and it should stay short: an entry here is a page that asks the backend for nothing,
- * which for this application is unusual enough to be worth naming. `/help` and the two section
- * indexes are prose and links; `/dev/inspector` is a component harness whose fixtures are compiled
- * in. If a page appears here that a reader would expect to show *data*, that is a finding, not a
- * reason to extend the list.
+ * which for this application is unusual enough to be worth naming. `/help` is prose and links. If a
+ * page appears here that a reader would expect to show *data*, that is a finding, not a reason to
+ * extend the list.
+ *
+ * `/dev/inspector` was the second entry and went with the route at `ui#21` — its fixtures were
+ * compiled in, so it asked the backend for nothing by construction.
  */
-const NO_BACKEND_NEEDED = new Set(["/help", "/dev/inspector"]);
+const NO_BACKEND_NEEDED = new Set(["/help"]);
 
 test("the export has routes to drive at all", () => {
   // The same vacuity guard `smoke.spec.ts` carries: a data-driven suite over an empty directory is

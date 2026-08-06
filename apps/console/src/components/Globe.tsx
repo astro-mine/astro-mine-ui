@@ -20,6 +20,16 @@
 // The assets themselves are staged into `public/cesium` by `scripts/copy-cesium-assets.mjs`, which
 // the build runs before `next build`. Nothing is fetched from a CDN in either mode — that is CX-LOCAL,
 // and it is why the copy exists rather than a script tag.
+//
+// **`CESIUM_BASE_URL` has two consumers; the `Globe` component currently has none, and that is
+// recorded rather than resolved.** `ui#21` deleted `/dev/inspector`, which was the only thing
+// mounting it — `ReplayPane` and `InspectionPane` each do their own `next/dynamic` and take only the
+// constant. The export is kept because it is the mechanism for a gap, not a leftover: `ui.md` §6
+// says a `world` artifact renders a globe, `packages/inspectors/src/model.ts` says the panel is
+// *handed* one rather than summoning it, and `/registry/artifact` passes no `globe` slot — so a
+// world artifact there renders `WorldInspector`'s "no globe was supplied" state instead of a globe.
+// Deleting this would mean re-deriving the mount on the day that is closed. **If that gap is closed
+// elsewhere, or declared deliberate, delete this export.**
 
 import Box from "@mui/material/Box";
 import CircularProgress from "@mui/material/CircularProgress";

@@ -29,26 +29,23 @@ const APP_DIR = fileURLToPath(new URL("../src/app", import.meta.url));
 /**
  * Routes that are deliberately not in the navigation.
  *
- * **Each entry carries a reason and an expiry — this is not a hole in the check.** An unlisted
- * scaffold is better than a nav entry pointing at a development page, and better than no way at all
- * to see a behaviour render.
+ * **Empty, and getting here was the point.** Each entry ever in this list carried a reason and an
+ * expiry, and both scaffolds reached theirs:
  *
- * `/dev/globe` (`ui#6`) was here and **has been deleted by `ui#17`**, which was its stated expiry:
- * `/design/study` now mounts a globe on a page a user actually visits, so the scaffold's reason —
- * "a globe has to mount somewhere to prove Cesium renders in the built export" — is served by a
- * real page. The exception went with the route rather than outliving it.
+ * - `/dev/globe` (`ui#6`) went at `ui#17`, when `/design/study` began mounting a globe on a page a
+ *   user actually visits.
+ * - `/dev/inspector` (`ui#7`) went at `ui#21`. Its stated expiry was `ui#10` — "delete when a real
+ *   page renders a panel" — and `ui#10` shipped the artifact page that does. It then outlived that
+ *   expiry by a wave, which is exactly the drift the expiry existed to prevent, and it was still
+ *   shipping in the export at the point the deployment was being written up.
  *
- * - `/dev/inspector` (`ui#7`) — the artifact inspector registry's most user-visible behaviour is
- *   what a reader meets when *nothing* claims their artifact, or when two things claim it equally.
- *   No page renders a panel until `ui#10`, so without this those states could only be asserted in
- *   jsdom. **Delete when `ui#10` lands.**
- *
- * **The pattern is the thing to watch.** Each of these is honest on its own; several would be a
- * sign that scaffolds are how this application gets built, rather than how a behaviour is checked
- * once before a real page exists. An exception nobody removes becomes the precedent for the next
- * one — which is why the list going from two to one here matters more than the deletion itself.
+ * **Every route on disk now has a navigation entry**, so the check below stops having an exception
+ * to make. The two checks that police this list are kept rather than deleted with it: they are what
+ * a future exception meets on its way in, and they are cheap. The thing to watch is the pattern —
+ * several exceptions at once would mean scaffolds are how this application gets built, rather than
+ * how a behaviour is checked once before a real page exists.
  */
-const UNLISTED_ROUTES: readonly string[] = ["/dev/inspector"];
+const UNLISTED_ROUTES: readonly string[] = [];
 
 /** Every route the filesystem actually serves, derived from where the `page.tsx` files are. */
 function routesOnDisk(dir = APP_DIR, prefix = ""): string[] {
