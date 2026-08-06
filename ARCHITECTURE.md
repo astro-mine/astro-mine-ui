@@ -368,6 +368,7 @@ running in CI, and a typo'd path reading as drift rather than as a typo.
 
 **The one lane that still cannot run here is `Image`**, and that is not a gap to close in software:
 its subject _is_ the OCI image, so it needs a container runtime (`docker` or `podman`) present.
+
 ### The build repairs the minifier's output, and why that is not as bad as it sounds
 
 `pnpm build` runs [`scripts/repair-octal-escapes.mjs`](scripts/repair-octal-escapes.mjs) over the

@@ -91,10 +91,11 @@ test("reads what evidence the registry holds, without calling it a verified supp
 // lane is the only one with both a browser and a world in it.
 //
 // It is two tests because the first run of the second one **found a defect that predates ui#51**:
-// the Cesium chunk in the built export is not parseable JavaScript, so no globe mounts anywhere in
-// the bundle this repository ships (astro-mine-ui#55). Merging them would mean either asserting
-// nothing about the page's own wiring, or carrying a red lane for a defect this branch did not
-// cause. So the page's half is asserted green, and the mount is asserted as the gap it is.
+// the Cesium chunk in the built export was not parseable JavaScript, so no globe mounted anywhere in
+// the bundle this repository ships (astro-mine-ui#55, since fixed). The split outlived its cause and
+// is kept, because the two assert different things: the first is about the *page* passing a slot and
+// needs no Cesium at all, the second is about the *chunk* loading. Keeping them apart means a broken
+// bundler cannot be mistaken for a broken page.
 
 /** Where the seeded world artifact lives, as a URL a reader could send to a colleague. */
 function worldArtifactUrl(): string {
@@ -136,29 +137,23 @@ test("supplies a world artifact's terrain from the artifact's own page", async (
   await expect(page.getByText("No terrain rendered")).toHaveCount(0);
 });
 
-// **EXPECTED TO FAIL — astro-mine-ui#55, and it is not this branch's defect.**
+// **This was `test.fail` for one commit, and the `.fail` came off here** (astro-mine-ui#55).
 //
-// `next build` emits Cesium into a 4 MB chunk that **is not parseable JavaScript**: it carries an
-// embedded binary inside a template literal with octal escapes, so evaluating it throws
-// `SyntaxError: Octal escape sequences are not allowed in template strings`. `next/dynamic` never
-// resolves, and the loading fallback is permanent. Reproduced on `main` at 00b7b51 with this branch
-// nowhere near it — `node --check` fails on the same two chunks — so **every 3D surface in the
-// shipped bundle is dead**: this globe, `/design/study`'s inspection pane and `/bench/submission`'s
-// replay all load it.
+// It arrived with `ui#51` asserting a gap: `next build` emitted Cesium into a 4 MB chunk that was
+// **not parseable JavaScript** — an embedded binary inside a template literal with octal escapes —
+// so `next/dynamic` never resolved and the loading fallback was permanent. Every 3D surface in the
+// shipped bundle was dead, and it was invisible because minification only runs in a production build.
+// The build now repairs the minifier's output and `pnpm check:chunks` fails if a chunk ever stops
+// parsing, so this asserts the behaviour rather than the gap.
 //
-// It went unnoticed because minification only happens in a production build, and the globes were
-// only ever read on `pnpm dev`, on two scaffold routes that were then deleted.
+// With `.fail` gone it earns its second subject: it is the only end-to-end cover for the API-base
+// join in `data/apiUrl.ts`, because the manifest URL is a path on the API and this page is served
+// from its own origin.
 //
-// `test.fail` rather than `test.skip`, which is the house pattern (p5 carries two of them): a
-// skipped test asserts nothing and is deleted by the next person who reads it, while this one
-// **turns the lane red the day #55 is fixed** and has to be revisited. When that happens, drop
-// `.fail` — and this then also covers the API-base join in `data/apiUrl.ts` end to end, which is
-// the one thing about the terrain path no green test can reach today.
-// **Every wait here carries its own timeout, and that is load-bearing rather than tidy.** A
-// `test.fail` must *fail*; if it runs out the project's ten-minute budget instead, Playwright reports
-// "expected failed, got timedOut" — a genuine red — and the lane says nothing about #55. Left
-// implicit, a missing button waits the whole test timeout, which is exactly what happened once.
-test.fail("mounts the globe once the world resolves", async ({ page }) => {
+// **Every wait carries its own timeout**, which is load-bearing rather than tidy: an implicit one is
+// the project's ten-minute budget, so a missing button used to burn the whole of it and report a
+// timeout instead of the assertion that actually failed.
+test("mounts the globe once the world resolves", async ({ page }) => {
   await page.goto(worldArtifactUrl());
   await page.getByRole("button", { name: "Draw the terrain" }).click({ timeout: 30_000 });
 
