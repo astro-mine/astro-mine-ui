@@ -257,6 +257,7 @@ not think about.
 | **Bundle budget**            | a route exceeding its per-route JavaScript budget                                                           |
 | **E2E (degraded)**           | a route that does not serve, paint its own heading, hydrate cleanly, or explain a missing backend           |
 | **Accessibility**            | an axe violation on any route in either scheme                                                              |
+| **Image**                    | an image that does not build, serve, inject its endpoint at start, or refuse a malformed one                |
 | **Persona journeys**         | a broken journey against a **real seeded API** — on `main`, and on a pull request labelled `journeys`       |
 
 Each is its own job, so a red check names itself. **Every gate carries a test proving it can
@@ -326,6 +327,92 @@ product bug and is not.
 A third, narrower one, recorded because it cost a wrong fix before the right one: **under jsdom,
 `import.meta.url` is a `file:` URL inside a test callback and an `http:` one at module scope.** A
 test that resolves a fixture path at module scope cannot use it.
+
+## How it deploys
+
+**The deployable is a directory.** `pnpm build` emits `apps/console/out` — HTML, JavaScript and
+Cesium's runtime assets — and any static host serves it: an object store, a CDN bucket, a static
+site host, `python -m http.server`. There is no Node process behind it, no route handler and no
+server component doing data work. That is what `output: 'export'` buys, and the costs it charges are
+recorded above under "identity lives in the search params".
+
+**The endpoint is not in the bundle.** It is fetched at boot from `/config.json`, at the root of the
+deployment:
+
+```json
+{ "apiBaseUrl": "https://api.example.org" }
+```
+
+`apps/console/public/config.json` is `.gitignore`d by construction, so a build ships **no** endpoint
+and an unconfigured deployment degrades visibly out of the box rather than pretending to be
+configured and failing somewhere less obvious. `public/config.example.json` is the shape, and it is
+deliberately never served as a fallback: an example endpoint answering as the real one is exactly the
+stand-in that looks like the real thing.
+
+The reason it is runtime rather than build-time configuration is that **the person who deploys the
+bundle is not the person who built it.** An endpoint compiled in would mean one build per
+environment, and one build per environment means the artifact that was tested is not the artifact
+that ships. `e2e/deployment.spec.ts` asserts the property directly: the same `out/` is driven at two
+different endpoints in one run, with nothing rebuilt in between, and every route is swept for a
+request that leaves the origin — no CDN, no font host, no beacon (CX-LOCAL).
+
+Two things that assertion deliberately does not cover, because they are data rather than build
+output: an episode's MCAP replay and a world's 3D Tiles bundle are addressed by URLs **the API
+supplies**, and a deployment may serve those from a registry beside the API. That is also why the
+image ships no Content-Security-Policy — see the note in `docker/headers.conf`.
+
+Because the browser calls the API from another origin, **the API must send CORS headers or the
+application is inert.** A deployment requirement, not optional hardening.
+
+### The image
+
+For the hosted tier, and for anyone who would rather run one container than configure a web server:
+
+```bash
+docker build -t astro-mine-ui .
+docker run --rm -p 8080:8080 astro-mine-ui                                        # unconfigured
+docker run --rm -p 8080:8080 -e ASTRO_MINE_API_BASE_URL=https://api.example.org astro-mine-ui
+```
+
+Two stages — `node` builds the export from source, `nginx-unprivileged` serves it as uid 101 on
+8080 — with **both base images pinned by digest** (`conventions.md` §7.2), and no build secret:
+every `@astro-mine/*` dependency is `workspace:*`, so the image builds from a clean clone with no
+token.
+
+`docker/10-runtime-config.sh` runs before nginx and has three outcomes, which are the whole design:
+a mounted `config.json` is left alone (a mount is a deliberate act); an unset
+`ASTRO_MINE_API_BASE_URL` writes nothing, because unconfigured is a state the application renders
+honestly rather than a reason to crash-loop; and a malformed one **fails at start**, because an
+operator who set the variable meant to configure this deployment and a typo must not hide behind a
+page that reads like a design decision.
+
+The CI `image` lane builds it and then _executes_ it — a nginx configuration that only ever gets read
+is a nginx configuration that is wrong. It asserts the unconfigured state, both trailing-slash forms
+of a route, the application's own 404 body on a 404 status, Cesium served as `application/wasm`, the
+security headers surviving every `location` block (nginx's `add_header` does not accumulate across
+levels, which is invisible until somebody looks at a response), one image serving two endpoints, a
+mounted file winning, a malformed endpoint refused, and a non-root uid.
+
+### What this workspace publishes
+
+**Nothing, today.** That is a decision rather than an omission, and it is the honest answer to the
+question the retirement of the `Surface` contract left open.
+
+- **`@astro-mine/console` is an application.** It is deployed, never consumed, and `private: true`
+  says so in the manifest.
+- **The four libraries build and are not published.** They had one class of external consumer — the
+  per-component `<component>-ui` surface packages and the old console — and the `Surface` contract
+  that created it is retired; `docs#93` retires the repositories themselves. Publishing a release
+  train with nothing on the other end of it buys optionality and costs a hand-set version, a tag per
+  cut, and pnpm's release-age floor blocking installs for a day after each publish
+  (`VERSIONING.md` §2.3).
+- **`publishConfig.registry` stays pinned** to GitHub Packages in all four manifests. It is a safety
+  control, not a plan: it makes the scope unable to resolve to npmjs.com even on a machine holding a
+  public-npm token, so the day a consumer appears the destination is already right.
+- **The image is built and verified, not pushed.** Same reasoning, same day it changes.
+
+Public npm publication is the deferred item in `VERSIONING.md` §6, gated on the public flip — not on
+anything in this repository.
 
 ## Stack
 
