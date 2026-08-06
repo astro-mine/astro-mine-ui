@@ -114,38 +114,46 @@ test("authors an objective, runs a study, inspects a candidate and tries to publ
   // showing an empty globe that reads as a failed load.
   await expect(page.getByText(/stand-in/i).first()).toBeVisible();
 
-  // --- UC-F6: publish the campaign — asserted as the gap it currently is (`ui#48`) ---------------
+  // --- UC-F6: publish the campaign ---------------------------------------------------------------
   //
   // **Published from the study, not from `/design/campaign`.** That route is keyed on `?ref=…` and
   // *opens* a published campaign; publishing is the step at the end of reading a front, which is
   // where the choice being published was made. It also has to happen here, in this test: the design
   // session lives in the tab, so a separate test would arrive with nothing composed.
   //
-  // And it fails today. The form sends `phases: []`, `Campaign.phases` requires at least one item,
-  // so the request raises inside the handler and returns a 500 rather than a problem document
-  // (`astro-mine-api#21`). Neither is this issue's to fix — what a published campaign's default
-  // phasing *is* belongs to `ui#18`.
+  // **This step asserted its own failure until `ui#48`.** The form sent `phases: []`,
+  // `Campaign.phases` requires at least one item, and the refusal escaped the handler as a 500. It
+  // was written as an assertion of the gap rather than a skip, precisely so that fixing the gap
+  // would turn the lane red and force this rewrite — which is what happened. The form now declares a
+  // single phase covering the whole design, and says so in place.
   //
-  // So this asserts what happens today rather than skipping the use case, and **it fails when
-  // either defect is fixed**. A gap nobody is forced to revisit is a gap that becomes the design.
+  // The 500-instead-of-a-problem-document half is `astro-mine-api#21` and is still open. It no
+  // longer fires here, because nothing on this page sends a campaign the model refuses — which is
+  // the reason that issue wants a general fix rather than this one.
   const candidate = page.getByRole("combobox", { name: /Candidate/ });
   await expect(candidate).toBeEnabled({ timeout: 30_000 });
   await candidate.click();
   await page.getByRole("option").first().click();
   await page.getByRole("textbox", { name: /Campaign name/ }).fill(`journey-suite-${Date.now()}`);
 
+  // The convention is disclosed before it is applied, not in a footnote after the fact.
+  await expect(page.getByText(/single phase covering the whole design/)).toBeVisible();
+
   await page.getByRole("button", { name: /Publish the campaign/ }).click();
 
-  // **Scoped away from Next's route announcer**, which is also `role="alert"` and carries the page
-  // title (`Study · Astro-Mine`) once a client-side navigation has happened — as one has, several
-  // steps above. `getByRole("alert").filter({ hasText: /\S/ })` therefore matches *two* elements
-  // whenever the announcer has spoken, and a strict-mode violation is thrown rather than retried.
-  // This passed for as long as it did on the announcer's timing rather than on anything it asserts,
-  // which is the kind of green that stops meaning something without ever going red.
+  // **A real, signed, content-addressed artifact came back.** The digest is the assertion rather
+  // than the word "Published": a receipt with no content address would be a page telling a reader
+  // something happened without giving them the thing that proves it (`ui.md` §7 rule 4).
+  await expect(page.getByText("Published")).toBeVisible({ timeout: 120_000 });
+  await expect(page.getByText(/sha256:[0-9a-f]{16,}/).first()).toBeVisible();
+
+  // ...and no error surfaced on the way. Scoped away from Next's route announcer, which is also
+  // `role="alert"` and carries the page title once a client-side navigation has happened — as one
+  // has, several steps above — so an unscoped locator matches two elements and throws a strict-mode
+  // violation rather than retrying.
   await expect(
     page.locator('[role="alert"]:not(#__next-route-announcer__)').filter({ hasText: /\S/ }),
-  ).toBeVisible({ timeout: 120_000 });
-  await expect(page.getByText("Published")).toHaveCount(0);
+  ).toHaveCount(0);
 });
 
 test("opens a published campaign by reference", async ({ page }) => {

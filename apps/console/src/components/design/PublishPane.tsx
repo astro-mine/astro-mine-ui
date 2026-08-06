@@ -44,7 +44,35 @@ import { useApiAction } from "@/data/useApiAction";
 import { hasSurface, useDeployment } from "@/data/useDeployment";
 
 import { artifactHrefFor } from "./campaignLinks";
-import type { ComparisonView, DesignCandidate, ObjectiveDocument, WorldResponse } from "./types";
+import type {
+  CampaignPhase,
+  ComparisonView,
+  DesignCandidate,
+  ObjectiveDocument,
+  WorldResponse,
+} from "./types";
+
+/**
+ * The single phase a campaign published from this page carries (ui#48).
+ *
+ * **`Campaign.phases` requires at least one item, and this page used to send none** — so every
+ * publish from here raised a `ValidationError` inside the handler and came back as a 500. The
+ * component tests never saw it, because the fake answered the call with a success document; the
+ * journey suite found it on its first run against a real service.
+ *
+ * One phase covering the whole design is not a workaround, it is what the model calls the normal
+ * case: `CampaignPhase`'s own documentation says *"single-phase campaigns are the common lunar case
+ * (a single-`surface`-phase Mission is exactly a campaign)"*, and `studio.md` puts phase
+ * **sequencing** — ordering, contingencies, cross-phase replanning — in the Mission Architect, which
+ * is a later track and has no surface here.
+ *
+ * **So it is declared, not designed, and the form says so.** A reader must not mistake this for a
+ * phasing somebody authored; the disclosure below the control is part of the fix rather than
+ * decoration. `duration_s` and `objective_ref` are deliberately absent: this page knows neither, and
+ * inventing them is exactly the "lineage the browser wrote" the note at the top of this file rules
+ * out.
+ */
+const PRIMARY_PHASE: CampaignPhase = { id: "primary", name: "Primary" };
 
 export interface PublishPaneProps {
   readonly view: ComparisonView;
@@ -107,7 +135,7 @@ export function PublishPane({ view, objective, candidates, world }: PublishPaneP
       // **Left null on purpose.** The backend composes the Campaign; a document assembled here
       // would be a lineage this browser wrote. Asserted by test.
       campaign: null,
-      phases: [],
+      phases: [PRIMARY_PHASE],
     });
   };
 
@@ -204,6 +232,17 @@ export function PublishPane({ view, objective, candidates, world }: PublishPaneP
                   inferring it.
                 </>
               )}
+            </Typography>
+            {/* **A convention this page applies, stated where it is applied** (ui#48). A campaign
+                must carry at least one phase, nothing here composes a phasing, and a reader who was
+                not told would reasonably assume the single phase was designed. Same rule as the
+                design-time layout disclosure one pane over: the artifact is identical either way,
+                which is precisely why it has to be words. */}
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+              This publishes as a <strong>single phase covering the whole design</strong>, named{" "}
+              <Box component="code">{PRIMARY_PHASE.name}</Box>. It is a declaration, not a phasing
+              anybody authored — ordering, contingencies and cross-phase replanning are not composed
+              on this page.
             </Typography>
             <Button variant="contained" disabled={!ready} onClick={onPublish}>
               {publish.state.status === "pending" ? "Publishing…" : "Publish the campaign"}

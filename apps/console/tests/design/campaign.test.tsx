@@ -122,6 +122,49 @@ describe("publishing", () => {
     expect(sent?.world_ref).toBe("commons/shackleton-rim:0.5.0");
   });
 
+  it("sends exactly one phase, because a campaign with none is one the model refuses", async () => {
+    // **ui#48, and the reason this assertion is on the REQUEST.** This page sent `phases: []` and
+    // every publish came back a 500 — `Campaign.phases` requires at least one item, so the model
+    // refused inside the handler. Nothing here caught it for two waves, because the fake answers
+    // with a success document no matter what is sent: asserting the page's happy path against a
+    // response the real service will not produce is what let it ship.
+    //
+    // So this asserts what leaves the browser. It is the half a mocked API cannot fake.
+    let sent: Record<string, unknown> | undefined;
+    server.events.on("request:start", async ({ request }) => {
+      if (new URL(request.url).pathname === "/studio/campaigns/publish") {
+        sent = (await request.clone().json()) as Record<string, unknown>;
+      }
+    });
+
+    use(HEALTHY);
+    use(
+      api.studioPublishCampaign({
+        body: {
+          reference: "commons/polar-ice:0.1.0",
+          digest: "sha256:campaign",
+          content_digest: "sha256:contentcontentcontentcontent",
+          kind: "campaign",
+        },
+      }),
+    );
+    renderWithApi(pane);
+    await publishAs(menuUser(), "polar-ice");
+
+    await screen.findByText("Published");
+    expect(sent?.phases).toEqual([{ id: "primary", name: "Primary" }]);
+  });
+
+  it("says in the form that the single phase is declared, not designed", async () => {
+    // The artifact is identical whether the phasing was authored or assumed, which is exactly why
+    // it has to be words — the same rule as the design-time layout disclosure.
+    use(HEALTHY);
+    renderWithApi(pane);
+
+    expect(await screen.findByText(/single phase covering the whole design/)).toBeInTheDocument();
+    expect(screen.getByText(/not a phasing anybody authored/)).toBeInTheDocument();
+  });
+
   it("leads with the reference and the digest, and links into the registry", async () => {
     use(HEALTHY);
     use(
