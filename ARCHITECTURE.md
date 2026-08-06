@@ -328,6 +328,47 @@ A third, narrower one, recorded because it cost a wrong fix before the right one
 `import.meta.url` is a `file:` URL inside a test callback and an `http:` one at module scope.** A
 test that resolves a fixture path at module scope cannot use it.
 
+### The three gates that read a sibling repository, and how to run them with no credential
+
+`check:api-drift`, `check:core-schema` and `check:vocabularies` each compare something committed here
+against something committed in a **private sibling repository** — the API's OpenAPI snapshot, Core's
+units schema, Core's and Hub's vocabularies. Over the network that needs `CORE_REPO_TOKEN`, and all
+three **fail rather than skip** when it is absent, deliberately: a contract check that goes quiet when
+its credential expires has stopped existing on exactly the day nobody notices.
+
+The consequence was that a third of the gates could not run on a developer machine at all, so "run
+the checks before you push" was advice nobody could take. But this workspace already has both
+repositories cloned beside this one, so the bytes are on disk:
+
+```
+pnpm check:contract:from      # all three, against ../astro-mine-api and ../astro-mine-platform
+pnpm check:api-drift:from     # or one at a time
+node scripts/check-core-schema.mjs --from /path/to/astro-mine-platform
+ASTRO_MINE_PLATFORM_REPO=/path/to/platform pnpm check:vocabularies
+```
+
+This is not a weaker check, and [`scripts/lib/local-checkout.mjs`](scripts/lib/local-checkout.mjs)
+exists to keep it that way. It reads with `git show <ref>:<path>` — **from a commit, never the
+working tree** — so a clone with uncommitted edits cannot produce a green that CI would not. It
+resolves `origin/HEAD` and **refuses to fall back to the local `HEAD`**, because a clone sitting on a
+feature branch would otherwise answer a different question silently. `check:core-schema` reads the
+exact commit its pin names, which makes its local path byte-identical to the networked one.
+
+Two things it will not do. It **prints the commit and its date and says plainly that it compared
+against your clone**, which is only as fresh as its last `git fetch` — a gate reporting "in step"
+against a three-week-old fetch would be telling you something untrue. And it is **refused outright
+when `CI` is set**: in CI the networked comparison is the only one that means anything, because it is
+the one that can see the upstream _move_. A clone inside a CI job is a copy of what this repository
+already believes — the shape of `consumer-smoke`, which this project has already watched stay green
+for months while structurally unable to fail.
+
+`scripts/lib/local-checkout.test.mjs` builds real git repositories in a temp directory and asserts
+each way the local path could lie: reading a dirty working tree, answering from a feature branch,
+running in CI, and a typo'd path reading as drift rather than as a typo.
+
+**The one lane that still cannot run here is `Image`**, and that is not a gap to close in software:
+its subject _is_ the OCI image, so it needs a container runtime (`docker` or `podman`) present.
+
 ## How it deploys
 
 **The deployable is a directory.** `pnpm build` emits `apps/console/out` — HTML, JavaScript and

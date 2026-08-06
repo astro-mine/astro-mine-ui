@@ -6,10 +6,17 @@
 //   - the full digest is present, not only an abbreviation;
 //   - attestations are never phrased as a verification result — with and without, both asserted;
 //   - an artifact with an inspector and one without both render.
+//
+// `ui#51` adds the composition half of the last one: a panel is *handed* its heavy visuals, and the
+// page is the only thing that may own a Cesium mount. What jsdom can assert is the wiring — the
+// slot is filled, the request goes out when asked and not before, a failure carries the backend's
+// words. **It cannot assert that a globe mounts**: there is no WebGL here. That is the journeys
+// lane's, in a real browser against a real API (`e2e/journeys/p3p4-authors.spec.ts`).
 
 import { mockApi } from "@astro-mine/api-client/testing";
 import { expectNoA11yViolations, forEachColorScheme } from "@astro-mine/ui/testing";
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
 import { ArtifactPage } from "@/components/registry/ArtifactPage";
@@ -190,6 +197,98 @@ describe("the inspector", () => {
     // The fallback's own title, which names the kind — not a loose /no inspector/i, which also
     // matches the panel heading and the explanatory sentence beneath it.
     expect(screen.getByText("No inspector for kind “comms_model”")).toBeInTheDocument();
+  });
+});
+
+describe("the world artifact's terrain", () => {
+  /** Every `/studio/worlds/…` request the page made, in order. */
+  function watchWorldRequests(): string[] {
+    const seen: string[] = [];
+    server.events.on("request:start", ({ request }) => {
+      const { pathname } = new URL(request.url);
+      if (pathname.startsWith("/studio/worlds")) seen.push(pathname);
+    });
+    return seen;
+  }
+
+  it("offers the terrain rather than reporting that none was supplied", async () => {
+    // **The defect this file now guards.** `ui.md` §6 opens with "a `world` artifact renders a
+    // globe"; the panel resolved correctly and then rendered `WorldInspector`'s "no globe was
+    // supplied" state, because the page — the only thing that may own a Cesium mount — passed no
+    // `globe` slot. `/dev/inspector` was the only place a globe ever reached a panel, and `ui#21`
+    // deleted it.
+    use(api.hubGetArtifact({ body: detail({ kind: "world_provider", artifact_kind: "world" }) }));
+    goTo(AT);
+    renderWithApi(<ArtifactPage />);
+
+    expect(await screen.findByRole("button", { name: "Draw the terrain" })).toBeInTheDocument();
+    expect(screen.queryByText("No terrain rendered")).toBeNull();
+  });
+
+  it("states what drawing costs before anything is pulled", async () => {
+    // Honesty rule 3's other half: a control that hides what it will do is a control a reader
+    // cannot consent to. Resolving asks the backend to pull a possibly-multi-GB bundle out of Hub
+    // and re-verify it, which is why this is a button at all rather than a page load.
+    use(api.hubGetArtifact({ body: detail() }));
+    goTo(AT);
+    renderWithApi(<ArtifactPage />);
+
+    await screen.findByRole("button", { name: "Draw the terrain" });
+    expect(screen.getByText(/pull the bundle and re-verify its supply chain/)).toBeInTheDocument();
+  });
+
+  it("pulls nothing until it is asked to, and then asks for this artifact", async () => {
+    const seen = watchWorldRequests();
+    use(api.hubGetArtifact({ body: detail() }));
+    goTo(AT);
+    renderWithApi(<ArtifactPage />);
+
+    const draw = await screen.findByRole("button", { name: "Draw the terrain" });
+    expect(seen).toEqual([]);
+
+    await userEvent.setup().click(draw);
+
+    // The artifact's own reference, encoded as one path segment — the client encodes a reference
+    // for the same reason `replayUrl` encodes a digest: it carries `/` and `:` and must survive as
+    // a single parameter.
+    await waitFor(() => expect(seen).toHaveLength(1));
+    expect(decodeURIComponent(seen[0]!)).toBe("/studio/worlds/commons/shackleton-rim:0.5.0");
+  });
+
+  it("costs a policy artifact nothing, though the page passes the same slot", async () => {
+    // **The property that lets the page stay ignorant of kinds.** `slots.globe` is an element, so
+    // creating one runs no component and triggers no Cesium import; only `WorldInspector` renders
+    // it. If this ever regresses into a fetch, it regresses on every artifact row in the registry.
+    const seen = watchWorldRequests();
+    use(api.hubGetArtifact({ body: detail({ kind: "policy", artifact_kind: "policy" }) }));
+    goTo(AT);
+    renderWithApi(<ArtifactPage />);
+
+    await screen.findByRole("heading", { name: "Inspector" });
+    expect(screen.queryByRole("button", { name: "Draw the terrain" })).toBeNull();
+    expect(seen).toEqual([]);
+  });
+
+  it("renders the backend's own reason when the world will not resolve", async () => {
+    // A deployment with no registry wiring cannot materialize terrain, and that is a *degraded*
+    // state with the API's sentence in it — not "something went wrong", and not a blank frame.
+    use(api.hubGetArtifact({ body: detail() }));
+    use(
+      api.studioResolveWorld({
+        problem: {
+          code: "capability_unavailable",
+          detail: "this deployment serves no terrain: no registry is configured",
+        },
+      }),
+    );
+    goTo(AT);
+    renderWithApi(<ArtifactPage />);
+
+    await userEvent.setup().click(await screen.findByRole("button", { name: "Draw the terrain" }));
+
+    expect(
+      await screen.findByText(/this deployment serves no terrain: no registry is configured/),
+    ).toBeInTheDocument();
   });
 });
 

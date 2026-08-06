@@ -136,7 +136,15 @@ test("authors an objective, runs a study, inspects a candidate and tries to publ
 
   await page.getByRole("button", { name: /Publish the campaign/ }).click();
 
-  await expect(page.getByRole("alert").filter({ hasText: /\S/ })).toBeVisible({ timeout: 120_000 });
+  // **Scoped away from Next's route announcer**, which is also `role="alert"` and carries the page
+  // title (`Study · Astro-Mine`) once a client-side navigation has happened — as one has, several
+  // steps above. `getByRole("alert").filter({ hasText: /\S/ })` therefore matches *two* elements
+  // whenever the announcer has spoken, and a strict-mode violation is thrown rather than retried.
+  // This passed for as long as it did on the announcer's timing rather than on anything it asserts,
+  // which is the kind of green that stops meaning something without ever going red.
+  await expect(
+    page.locator('[role="alert"]:not(#__next-route-announcer__)').filter({ hasText: /\S/ }),
+  ).toBeVisible({ timeout: 120_000 });
   await expect(page.getByText("Published")).toHaveCount(0);
 });
 

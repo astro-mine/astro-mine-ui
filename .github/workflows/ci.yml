@@ -63,6 +63,7 @@ jobs:
           pnpm check:vocabularies:test
           pnpm check:api-drift:test
           pnpm check:bundle:test
+          pnpm check:local-checkout:test
 
       - name: Format
         run: pnpm format:check

@@ -17,6 +17,12 @@
 // `@astro-mine/inspectors`' normative resolution (ui.md §6), and this page passes a subject and
 // takes what comes back — including the honest "no inspector for kind X" fallback, which is a state
 // rather than a blank.
+//
+// **What the page does supply is the globe** (ui#51). A panel is handed its heavy visuals rather
+// than summoning them, because `@astro-mine/view` carries Cesium and `@astro-mine/inspectors` may
+// not fetch — so filling the slot is the composition root's job, and this page is the composition
+// root. It supplies the capability, not a judgement about the subject: which panel uses it, and
+// whether any does, stays the registry's.
 
 import Box from "@mui/material/Box";
 import Divider from "@mui/material/Divider";
@@ -38,6 +44,7 @@ import { Attestations } from "./Attestations";
 import { DownloadControl } from "./DownloadControl";
 import { stateOf } from "./identity";
 import type { ArtifactDetail } from "./types";
+import { WorldTerrain } from "./WorldTerrain";
 
 const IDENTITY = ["name", "version"] as const;
 
@@ -210,7 +217,16 @@ export function ArtifactPage() {
                 <Typography variant="h6" component="h3" gutterBottom>
                   Inspector
                 </Typography>
-                <InspectorSlot registry={defaultInspectorRegistry} subject={toSubject(detail)} />
+                {/* The composition root supplies the heavy visual, and still knows nothing about
+                    worlds (ui#51). `slots.globe` is an *element*: creating it neither runs the
+                    component nor triggers the Cesium import, and only `WorldInspector` renders it
+                    — so a policy artifact pays for neither. What the page asserts by passing it is
+                    a capability, "terrain can be drawn here", not a claim about this subject. */}
+                <InspectorSlot
+                  registry={defaultInspectorRegistry}
+                  subject={toSubject(detail)}
+                  slots={{ globe: <WorldTerrain reference={detail.reference} /> }}
+                />
               </Box>
             </Stack>
           );

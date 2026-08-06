@@ -34,8 +34,10 @@ export function requireToken(env = process.env) {
         `  is looking.\n\n` +
         `  In CI:    gh secret set ${TOKEN_NAME} --repo astro-mine/astro-mine-ui\n` +
         `            (a token with Contents: read on the platform repository)\n` +
-        `  Locally:  export ${TOKEN_NAME}=<a read-scoped PAT>, or run the generator against a\n` +
-        `            local checkout: pnpm codegen:vocabularies --refresh --from ../astro-mine-platform`,
+        `  Locally:  compare against your own clone, which needs no credential —\n` +
+        `                pnpm check:vocabularies:from\n` +
+        `                node scripts/check-vocabularies.mjs --from ../astro-mine-platform\n` +
+        `            ...or export ${TOKEN_NAME}=<a read-scoped PAT>.`,
     );
   }
   return token;
