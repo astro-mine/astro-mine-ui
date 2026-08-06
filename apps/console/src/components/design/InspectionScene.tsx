@@ -20,6 +20,17 @@ import type { WorldResponse } from "./types";
 
 export interface InspectionSceneProps {
   readonly world: WorldResponse;
+  /**
+   * Where the world's `world.json` actually is — `world.manifest_url` resolved against the API.
+   *
+   * Passed in rather than read off `world`, because the response carries an **API-rooted path**
+   * (`/studio/worlds/files/…`) and this application is a static export the browser serves from its
+   * own origin (`ui.md` §5.1). Fetched as-is it resolves against the page and 404s, and the scene
+   * then reports "terrain unavailable" — which reads as a bad world bundle rather than as a URL
+   * assembled against the wrong host. The pane owns the deployment's configuration, so the pane
+   * does the join; see `data/apiUrl.ts` and `ReplayPane`, which passes its URL the same way.
+   */
+  readonly manifestUrl: string;
   readonly placements: readonly UnitPlacement[];
   /**
    * Where each asset's geometry is, by reference — from `GET /studio/catalog/preview/{ref}`.
@@ -31,7 +42,12 @@ export interface InspectionSceneProps {
   readonly geometry: Readonly<Record<string, string>>;
 }
 
-export function InspectionScene({ world, placements, geometry }: InspectionSceneProps) {
+export function InspectionScene({
+  world,
+  manifestUrl,
+  placements,
+  geometry,
+}: InspectionSceneProps) {
   return (
     <Box>
       <Box
@@ -44,7 +60,7 @@ export function InspectionScene({ world, placements, geometry }: InspectionScene
         }}
       >
         <GlobeScene
-          world={{ manifestUrl: world.manifest_url }}
+          world={{ manifestUrl }}
           showStatus
           showCoordinates
           style={{ width: "100%", height: "100%" }}

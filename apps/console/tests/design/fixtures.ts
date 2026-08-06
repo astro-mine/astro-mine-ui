@@ -144,7 +144,10 @@ export const resolvedWorld = (over: Partial<WorldResponse> = {}): WorldResponse 
   reference: "commons/shackleton-rim:0.5.0",
   digest: "sha256:world",
   world_id: "shackleton-rim",
-  manifest_url: "https://api.test/worlds/shackleton-rim/world.json",
+  // **What the route actually answers: a path on the API, not a URL** — `WORLD_STATIC_PREFIX` plus
+  // the cache directory the bundle unpacked into. This fixture was an absolute URL, which is why
+  // nothing here could see that the study page fetched it against the *page's* origin (ui#51).
+  manifest_url: "/studio/worlds/files/sha256-world/world.json",
   site: {
     body: "MOON",
     frame: "MOON_ME",

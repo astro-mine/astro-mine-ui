@@ -35,7 +35,9 @@ import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
 
 import { ApiResult } from "@/data/ApiResult";
+import { apiUrl } from "@/data/apiUrl";
 import { useApiQuery } from "@/data/useApiQuery";
+import { useRuntimeConfig } from "@/shell/runtimeConfig";
 import { CESIUM_BASE_URL } from "@/components/Globe";
 
 import { arrange, noSwarmReason, unitCount, type NoSwarmReason } from "./layout";
@@ -95,6 +97,7 @@ export interface InspectionPaneProps {
 
 export function InspectionPane({ candidate, onWorldResolved }: InspectionPaneProps) {
   const [reference, setReference] = useState("");
+  const { state } = useRuntimeConfig();
 
   const worlds = useApiQuery((client, signal) => client.studioListWorlds({ signal }), []);
 
@@ -105,6 +108,7 @@ export function InspectionPane({ candidate, onWorldResolved }: InspectionPanePro
   );
 
   const world = resolved.status === "ready" ? resolved.data : undefined;
+  const baseUrl = state.status === "configured" ? state.config.apiBaseUrl : null;
 
   // `ui#18` records which terrain the design was checked on, so the resolved world is reported
   // upward. An effect rather than a render-time call: notifying a parent during render is a state
@@ -211,7 +215,16 @@ export function InspectionPane({ candidate, onWorldResolved }: InspectionPanePro
           <GeometryFor references={references}>
             {(geometry, missing) => (
               <>
-                <InspectionScene world={world} placements={placements} geometry={geometry} />
+                <InspectionScene
+                  world={world}
+                  // The manifest is a path on the API, and this page is served from its own
+                  // origin — see `InspectionSceneProps.manifestUrl`. `baseUrl` is non-null
+                  // wherever a world resolved: `useApiQuery` answers `unconfigured` rather than
+                  // `ready` when there is no client to call with.
+                  manifestUrl={apiUrl(baseUrl!, world.manifest_url)}
+                  placements={placements}
+                  geometry={geometry}
+                />
                 {missing.length === 0 ? null : (
                   <Alert severity="warning" role="status" sx={{ mt: 2 }}>
                     <AlertTitle>
