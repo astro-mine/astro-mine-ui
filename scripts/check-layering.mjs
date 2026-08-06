@@ -11,8 +11,10 @@
 //   Rule 1 — the application may import any package.
 //   Rule 2 — a package MUST NOT import the application. Nothing sits above the app; it is the sink.
 //   Rule 3 — a package MUST NOT import a sibling, except that `inspectors` may import `ui` and
-//            `view`. Two packages that need the same thing means the thing belongs in `ui` or
-//            `view` — or, if it is platform behaviour, in the platform and then in the API.
+//            `view`. The `view` edge is permitted and currently unused, deliberately — see the
+//            note on ALLOWED_PACKAGE_IMPORTS below. Two packages that need the same thing means
+//            the thing belongs in `ui` or `view` — or, if it is platform behaviour, in the
+//            platform and then in the API.
 //
 // Type-only imports count. A type dependency is still a direction in the graph, and a rule that let
 // `import type` through would be a rule with a hole in it big enough to walk the whole design
@@ -58,8 +60,23 @@ const ALLOWED_PACKAGE_IMPORTS = {
   "@astro-mine/api-client": [],
   "@astro-mine/ui": [],
   "@astro-mine/view": [],
-  // The one sibling edge in the design: inspectors render artifacts, so they need the design system
-  // and — for a world artifact — the globe.
+  // The one sibling edge in the design, and the two halves of it are not alike (ui.md §3 rule 3).
+  //
+  // `ui` is taken: panels render artifacts, so they need the design system.
+  //
+  // `view` is PERMITTED AND UNUSED, and that is the design rather than an oversight — a panel MUST
+  // NOT reach for the globe. `@astro-mine/view` publishes a single entry that re-exports its Cesium
+  // module, so a static import from a panel would put four megabytes into the first paint of every
+  // page that renders an artifact row, and the build lane's "Cesium is served locally and loaded
+  // only on demand" step asserts the same property from the other side: that no prerendered route
+  // preloads the Cesium chunk. A panel is HANDED its heavy visuals instead — the composition root
+  // owns the one `next/dynamic` / `ssr: false` / `CESIUM_BASE_URL` mount and passes the result
+  // down through `InspectorSlots` (ui.md §6.1, normative). `inspectors` declines this edge in its
+  // manifest, and `packages/inspectors/tests/surface.test.ts` asserts the absence.
+  //
+  // It stays in the table for View's pure `frames` subtree — CRS, time, units, no Cesium — which is
+  // a legitimate consumer. Reopening an allowlist is a worse moment to think about layering than
+  // this one.
   "@astro-mine/inspectors": ["@astro-mine/ui", "@astro-mine/view"],
 };
 
