@@ -154,9 +154,13 @@ test("supplies a world artifact's terrain from the artifact's own page", async (
 // **turns the lane red the day #55 is fixed** and has to be revisited. When that happens, drop
 // `.fail` — and this then also covers the API-base join in `data/apiUrl.ts` end to end, which is
 // the one thing about the terrain path no green test can reach today.
+// **Every wait here carries its own timeout, and that is load-bearing rather than tidy.** A
+// `test.fail` must *fail*; if it runs out the project's ten-minute budget instead, Playwright reports
+// "expected failed, got timedOut" — a genuine red — and the lane says nothing about #55. Left
+// implicit, a missing button waits the whole test timeout, which is exactly what happened once.
 test.fail("mounts the globe once the world resolves", async ({ page }) => {
   await page.goto(worldArtifactUrl());
-  await page.getByRole("button", { name: "Draw the terrain" }).click();
+  await page.getByRole("button", { name: "Draw the terrain" }).click({ timeout: 30_000 });
 
   // The manifest is fetched from the API rather than from the origin serving this page: the response
   // carries an API-rooted path and the export is served from its own host — `:4174` against an API
