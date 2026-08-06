@@ -367,6 +367,174 @@ jobs:
       - name: axe over every route, light and dark
         run: pnpm e2e:a11y
 
+  # ── the image, executed rather than read ──────────────────────────────────────────────────────
+  #
+  # **The only lane that proves a deployment.** Every other lane here drives `apps/console/out`
+  # through a static server this repository configures for itself, which proves the *bundle* works
+  # and says nothing about the artifact an operator actually runs. The image adds the one thing the
+  # bundle cannot do for itself — put `config.json` in place at container start — and a nginx
+  # configuration that only ever gets read is a nginx configuration that is wrong.
+  #
+  # It does not `needs: build`: the image builds the export itself, from source, in its own first
+  # stage. Reusing the uploaded artifact would make the image a wrapper around this workflow rather
+  # than something a person can `docker build` from a clean clone, which is the property being
+  # claimed. The cost is one more `pnpm install` and `next build`, in parallel with everything else.
+  #
+  # **Nothing is pushed anywhere.** This workspace publishes nothing during incubation (see
+  # README.md → "What this workspace publishes"), and an image with no consumer and no registry is
+  # an image that only has to be correct. Adding a release lane is a deliberate change on the day
+  # there is somewhere for it to go.
+  image:
+    name: Image (builds, serves, configures)
+    runs-on: ubuntu-latest
+    # A bound rather than the six-hour default: this job compiles a front end inside a container,
+    # and a hung build should not hold a runner for an afternoon. Generous against the observed cost.
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      # Plain `docker build` rather than a build-push action: there is nothing to push, and a
+      # registry-cache round trip would cost about what it saves on a job this size. BuildKit is
+      # the runner's default.
+      - name: Build the image
+        run: docker build -t astro-mine-ui:ci .
+
+      # A container that is up is not a container that is serving. Every assertion below runs
+      # against a server that has answered once.
+      - name: Start it unconfigured
+        run: |
+          docker run -d --name unconfigured -p 8080:8080 astro-mine-ui:ci
+          for _ in $(seq 1 60); do
+            curl -fsS -o /dev/null http://127.0.0.1:8080/ && exit 0
+            sleep 1
+          done
+          echo "::error::the container never served / — logs follow"
+          docker logs unconfigured
+          exit 1
+
+      # The state a reader meets when nobody has configured a backend. `ui.md` §7 rule 3 is asserted
+      # on the pages by the degraded lane; what this asserts is that the *image* produces that state
+      # rather than a crash loop or a baked-in endpoint.
+      - name: With no endpoint set, it serves the export and no config
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/config.json)
+          [ "$code" = "404" ] \
+            || { echo "::error::/config.json answered $code on an unconfigured container; it must be absent, which is what the application reads as 'no API is configured'"; exit 1; }
+
+          curl -fsS http://127.0.0.1:8080/ | grep -q '<h1' \
+            || { echo "::error::/ served no <h1> — the export is not being served"; exit 1; }
+
+          # `trailingSlash: true` emits a directory per route. Both forms must work: a shared link
+          # carries whichever one the reader copied.
+          for path in /bench/leaderboard/ /bench/leaderboard /registry/artifact/; do
+            curl -fsS "http://127.0.0.1:8080$path" | grep -q '<h1' \
+              || { echo "::error::$path did not serve the page"; exit 1; }
+          done
+
+          # A mistyped URL gets the application's own not-found page, on a 404 status. A static host
+          # that answered every path with index.html would make a broken link look like a working
+          # one — which is why this asserts the code and the body together.
+          code=$(curl -s -o /tmp/nf.html -w '%{http_code}' http://127.0.0.1:8080/no/such/page)
+          [ "$code" = "404" ] || { echo "::error::an unknown path answered $code, not 404"; exit 1; }
+          grep -q '<h1' /tmp/nf.html \
+            || { echo "::error::the 404 body is not the application's own not-found page"; exit 1; }
+
+      # Cesium is served by the deployment or the globe does not load. The build lane asserts the
+      # files were staged; this asserts nginx hands them over, with the content type a browser will
+      # instantiate WebAssembly from.
+      - name: Cesium is served by the deployment, correctly typed and cached
+        run: |
+          ct=$(curl -fsS -o /dev/null -w '%{content_type}' \
+            http://127.0.0.1:8080/cesium/ThirdParty/draco_decoder.wasm)
+          case "$ct" in
+            application/wasm*) ;;
+            *) echo "::error::draco_decoder.wasm was served as '$ct'; a browser refuses to stream-compile anything but application/wasm"; exit 1 ;;
+          esac
+          curl -fsS -o /dev/null http://127.0.0.1:8080/cesium/Workers/cesiumWorkerBootstrapper.js \
+            || { echo "::error::Cesium's workers are not served"; exit 1; }
+
+          curl -fsS -D- -o /dev/null http://127.0.0.1:8080/cesium/ThirdParty/draco_decoder.wasm \
+            | grep -qi 'cache-control:.*immutable' \
+            || { echo "::error::content-addressed assets are not served immutable"; exit 1; }
+
+      # `add_header` does not accumulate across nginx levels — a location that sets Cache-Control
+      # discards every header inherited from the server block. That footgun is invisible until
+      # somebody looks at a response, so this looks at responses from three different locations.
+      - name: The security headers survive every location block
+        run: |
+          for path in / /cesium/ThirdParty/draco_decoder.wasm /no/such/page; do
+            curl -s -D- -o /dev/null "http://127.0.0.1:8080$path" \
+              | grep -qi 'x-content-type-options: nosniff' \
+              || { echo "::error::$path answered without X-Content-Type-Options; a location block dropped the inherited headers"; exit 1; }
+          done
+
+      - name: Stop the unconfigured container
+        if: always()
+        run: docker rm -f unconfigured
+
+      # THE CLAIM THE IMAGE EXISTS FOR: one build, two deployments, no rebuild between them.
+      # Same image id, two `docker run` invocations, two endpoints.
+      - name: The endpoint arrives at container start, not at build time
+        run: |
+          for endpoint in https://alpha.example https://beta.example; do
+            docker run -d --name cfg -p 8081:8080 -e "ASTRO_MINE_API_BASE_URL=$endpoint" astro-mine-ui:ci
+            for _ in $(seq 1 60); do
+              curl -fsS -o /dev/null http://127.0.0.1:8081/ && break
+              sleep 1
+            done
+
+            body=$(curl -fsS http://127.0.0.1:8081/config.json)
+            [ "$body" = "{\"apiBaseUrl\":\"$endpoint\"}" ] \
+              || { echo "::error::config.json is '$body', expected {\"apiBaseUrl\":\"$endpoint\"}"; docker logs cfg; docker rm -f cfg; exit 1; }
+
+            # Never cached: it is the one file that differs between two deployments of identical
+            # bytes, and a cached copy would pin a bundle to whichever backend it first met.
+            curl -s -D- -o /dev/null http://127.0.0.1:8081/config.json | grep -qi 'cache-control:.*no-store' \
+              || { echo "::error::config.json is cacheable"; docker rm -f cfg; exit 1; }
+
+            docker rm -f cfg
+          done
+          echo "One image, two endpoints, no rebuild."
+
+      # A mounted file is a deliberate act — a ConfigMap, a compose volume, an operator who wants
+      # more in it than one key. An entrypoint that overwrote it would make the mount silently do
+      # nothing, which is the worst of the three outcomes.
+      - name: A mounted config.json is left alone
+        run: |
+          echo '{"apiBaseUrl":"https://mounted.example"}' > /tmp/config.json
+          docker run -d --name mounted -p 8082:8080 \
+            -e ASTRO_MINE_API_BASE_URL=https://env.example \
+            -v /tmp/config.json:/usr/share/nginx/html/config.json:ro astro-mine-ui:ci
+          for _ in $(seq 1 60); do
+            curl -fsS -o /dev/null http://127.0.0.1:8082/ && break
+            sleep 1
+          done
+          body=$(curl -fsS http://127.0.0.1:8082/config.json)
+          docker rm -f mounted
+          case "$body" in
+            *mounted.example*) echo "The mounted file won, as it must." ;;
+            *) echo "::error::the entrypoint overwrote a mounted config.json with the environment variable: $body"; exit 1 ;;
+          esac
+
+      # An operator who set the variable meant to configure this deployment. Serving the
+      # unconfigured state instead would hide their typo behind a page that reads like a design
+      # decision, so a malformed value fails at start, where the message reaches the person who
+      # typed it.
+      - name: A malformed endpoint fails the container rather than degrading quietly
+        run: |
+          if docker run --rm --name bad -e ASTRO_MINE_API_BASE_URL=not-a-url astro-mine-ui:ci; then
+            echo "::error::the container started with ASTRO_MINE_API_BASE_URL=not-a-url; a typo would serve as 'no API is configured' forever"
+            exit 1
+          fi
+          echo "Rejected at start, as it must be."
+
+      - name: The image runs as a non-root user
+        run: |
+          uid=$(docker run --rm --entrypoint id astro-mine-ui:ci -u)
+          [ "$uid" != "0" ] \
+            || { echo "::error::the image runs as root; nginx-unprivileged is the base precisely so it does not"; exit 1; }
+          echo "Runs as uid $uid."
+
   # ── the persona journeys, against a real seeded API ───────────────────────────────────────────
   #
   # **The only lane in this repository that proves the contract holds.** Every other test that

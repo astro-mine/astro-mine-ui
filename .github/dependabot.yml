@@ -98,3 +98,20 @@ updates:
       actions:
         patterns:
           - "*"
+
+  # ---- the image's base images ----------------------------------------------
+  # `conventions.md` §7.2 asks for pinned base images, and the Dockerfile pins both stages by
+  # digest. A digest is exactly as immutable as it is stale: nothing about `node:24-alpine@sha256:…`
+  # changes when the tag is rebuilt with a patched OpenSSL, and the pin that made the build
+  # reproducible is the same pin that keeps it vulnerable. This is the update path that closes that
+  # gap — the reason the pins are written as `tag@digest` rather than as a bare digest, which
+  # Dependabot cannot resolve a successor for.
+  #
+  # Ungrouped: there are two, they move on different schedules, and the CI `image` lane builds and
+  # executes the container on the pull request that proposes each one.
+  - package-ecosystem: docker
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 2
