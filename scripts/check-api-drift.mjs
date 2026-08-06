@@ -22,8 +22,14 @@
 // the chain is: their CI proves snapshot == live document, ours proves vendored == snapshot and
 // client == vendored. No server, no Python, no platform wheel in this workflow.
 //
-//   node scripts/check-api-drift.mjs              both halves
-//   node scripts/check-api-drift.mjs --local      the first half only, for a laptop
+//   node scripts/check-api-drift.mjs              both halves, the second over the network
+//   node scripts/check-api-drift.mjs --local      the first half only
+//   node scripts/check-api-drift.mjs --from PATH  both halves, the second from a local checkout
+//
+// `--from` (or `ASTRO_MINE_API_REPO`) is what makes this runnable with no credential: this
+// workspace already has astro-mine-api cloned beside it, so the bytes are on disk. It reads them
+// from the default branch's head *commit* rather than the working tree, and says how stale the
+// clone may be — see `scripts/lib/local-checkout.mjs`. CI refuses it.
 //
 // Exit 0 = in step; exit 1 = drift, with the diff and what to do about it.
 
@@ -32,6 +38,13 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+
+import {
+  defaultBranchHead,
+  resolveCheckout,
+  showAt,
+  stalenessNote,
+} from "./lib/local-checkout.mjs";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const VENDORED = resolve(repoRoot, "packages/api-client/openapi/openapi.json");
@@ -138,26 +151,55 @@ function fetchApiSnapshot(token) {
   }
 }
 
+/** The same file, out of a local clone's default-branch head. No network, no credential. */
+function readApiSnapshotFrom(checkout) {
+  const head = defaultBranchHead(checkout, API_REPO);
+  const bytes = showAt(checkout, head.commit, API_SNAPSHOT, API_REPO);
+  return { bytes, head: head.commit, note: stalenessNote(checkout, head, API_REPO) };
+}
+
 function checkVendoredDocument() {
+  let checkout;
+  try {
+    checkout = resolveCheckout({ envName: "ASTRO_MINE_API_REPO", repoName: API_REPO });
+  } catch (error) {
+    fail(error.message);
+    return false;
+  }
+
   const token = process.env[TOKEN_NAME];
-  if (!token) {
+  if (!checkout && !token) {
     fail(
       `\`${TOKEN_NAME}\` is not set, so the vendored document cannot be compared to ${API_REPO}.\n\n` +
         `  This half of the gate fails rather than skips, deliberately: a contract check that goes\n` +
         `  quiet when its credential is absent is a contract check that has stopped existing.\n\n` +
         `  In CI:    gh secret set ${TOKEN_NAME} --repo astro-mine/astro-mine-ui\n` +
-        `  Locally:  run \`node scripts/check-api-drift.mjs --local\`, which checks only that the\n` +
-        `            committed client matches the vendored document.`,
+        `  Locally:  compare against your own clone, which needs no credential —\n` +
+        `                pnpm check:api-drift:from\n` +
+        `                node scripts/check-api-drift.mjs --from ../astro-mine-api\n` +
+        `            or run \`--local\`, which checks only that the committed client matches the\n` +
+        `            vendored document.`,
     );
     return false;
   }
 
-  const upstream = fetchApiSnapshot(token);
+  let upstream;
+  if (checkout) {
+    try {
+      upstream = readApiSnapshotFrom(checkout);
+    } catch (error) {
+      fail(error.message);
+      return false;
+    }
+  } else {
+    upstream = fetchApiSnapshot(token);
+  }
   if (!upstream) return false;
 
   const vendored = readFileSync(VENDORED);
   if (vendored.equals(upstream.bytes)) {
     console.log(`✓ the vendored document matches ${API_REPO} at ${upstream.head.slice(0, 7)}`);
+    if (upstream.note) console.log(upstream.note);
     return true;
   }
 

@@ -41,6 +41,12 @@ import {
   readPin,
 } from "./lib/platform-vocabularies.mjs";
 import { fileAt, headCommit, requireToken } from "./lib/platform-fetch.mjs";
+import {
+  defaultBranchHead,
+  resolveCheckout,
+  showAt,
+  stalenessNote,
+} from "./lib/local-checkout.mjs";
 
 const PLATFORM_REPO = "astro-mine/astro-mine-platform";
 
@@ -135,14 +141,32 @@ async function checkAgainstPlatform() {
   const pin = readPin();
   let token;
   let head;
+  let note = "";
   const upstream = {};
 
   try {
-    token = requireToken();
-    head = await headCommit(PLATFORM_REPO, token);
-    for (const vocabulary of VOCABULARIES) {
-      const source = await fileAt(PLATFORM_REPO, head, vocabulary.source, token);
-      upstream[vocabulary.name] = extract(source, vocabulary);
+    const checkout = resolveCheckout({
+      envName: "ASTRO_MINE_PLATFORM_REPO",
+      repoName: PLATFORM_REPO,
+    });
+
+    if (checkout) {
+      // The same question CI asks — what does the *default branch* declare right now — answered
+      // from the clone's `origin/HEAD` rather than from the contents API.
+      const local = defaultBranchHead(checkout, PLATFORM_REPO);
+      head = local.commit;
+      note = stalenessNote(checkout, local, PLATFORM_REPO);
+      for (const vocabulary of VOCABULARIES) {
+        const source = showAt(checkout, head, vocabulary.source, PLATFORM_REPO).toString("utf8");
+        upstream[vocabulary.name] = extract(source, vocabulary);
+      }
+    } else {
+      token = requireToken();
+      head = await headCommit(PLATFORM_REPO, token);
+      for (const vocabulary of VOCABULARIES) {
+        const source = await fileAt(PLATFORM_REPO, head, vocabulary.source, token);
+        upstream[vocabulary.name] = extract(source, vocabulary);
+      }
     }
   } catch (error) {
     fail(error.message);
@@ -155,6 +179,7 @@ async function checkAgainstPlatform() {
       `✓ the pinned vocabularies match ${PLATFORM_REPO} at ${head.slice(0, 9)} ` +
         `(${VOCABULARIES.map((v) => v.name).join(", ")})`,
     );
+    if (note) console.log(note);
     return true;
   }
 
