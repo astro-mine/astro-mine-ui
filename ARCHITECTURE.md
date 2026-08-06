@@ -369,6 +369,41 @@ running in CI, and a typo'd path reading as drift rather than as a typo.
 **The one lane that still cannot run here is `Image`**, and that is not a gap to close in software:
 its subject _is_ the OCI image, so it needs a container runtime (`docker` or `podman`) present.
 
+### The build repairs the minifier's output, and why that is not as bad as it sounds
+
+`pnpm build` runs [`scripts/repair-octal-escapes.mjs`](scripts/repair-octal-escapes.mjs) over the
+export, and [`pnpm check:chunks`](scripts/check-chunk-syntax.mjs) asserts that every emitted chunk
+parses. Both exist because of one upstream bug, and both should be read as temporary — the check is
+worth keeping regardless; the repair has an exit condition.
+
+Cesium ships `cesium/Build/Cesium/index.js` **already minified** and perfectly valid, with a wasm
+module inlined as a byte-string (emscripten's single-file trick). Turbopack re-minifies that vendor
+bundle with SWC, which moves the byte-string into a **template literal** and writes NUL as `\00` — an
+octal escape, legal in the string Cesium shipped, a **syntax error** in a template literal. The chunk
+stops being JavaScript, `next/dynamic` never resolves it, and the loading state is permanent.
+
+**Every 3D surface in the shipped bundle was dead for two waves** — the artifact globe, the
+design-study inspection pane and the submission replay all load that chunk — and nothing went red,
+because minification only runs in a production build and no lane had ever mounted a globe from the
+export. Upstream: [swc-project/swc#361](https://github.com/swc-project/swc/issues/361), still
+reproducing on Next 16.2.12 and 16.3.0.
+
+The alternatives were measured, not assumed. `turbopackMinify: false` emits valid chunks and takes
+the chunk directory from 9.8 MB to 32 MB, which also breaches the per-route bundle budget;
+`next build --webpack` fails for unrelated reasons and is a far larger change; upgrading to Next
+16.3.0 does not fix it.
+
+So the repair rewrites `\00` to `\x00` — **the same character**, in a string, a template literal or a
+regular expression alike. It can change spelling and not behaviour, and three things keep that from
+being merely a claim: the transform follows Annex B's escape grammar exactly (longest-match octal,
+`\0` alone left legal-and-untouched, `\\00` recognised as a backslash and two zeroes) and its tests
+**evaluate** the result rather than parsing it, including every byte from 0 to 255; `pnpm check:chunks`
+fails the build if any chunk stops parsing; and the journeys lane mounts a real replay scene in a real
+browser, which is the only evidence that the chunk actually runs.
+
+**Delete the repair when SWC stops doing this.** `pnpm check:chunks` passing with that step removed is
+the whole exit condition. Keep the check.
+
 ## How it deploys
 
 **The deployable is a directory.** `pnpm build` emits `apps/console/out` — HTML, JavaScript and
