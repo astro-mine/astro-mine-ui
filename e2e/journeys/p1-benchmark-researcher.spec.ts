@@ -67,6 +67,42 @@ test("from the board to a scorecard, its provenance and its replay", async ({ pa
   await expect(page.getByText(/frames?/i).first()).toBeVisible();
 });
 
+// **The one test in this suite whose subject IS the 3D chunk loading** (astro-mine-ui#55).
+//
+// Every other journey says the opposite in as many words — "asserted through the summary rather than
+// by mounting the globe" — and that stays right: a Cesium scene is incidental to what they are about,
+// and asserting on one buys flakes. The cost of nobody ever asserting it was two waves in which
+// **every 3D surface in the shipped bundle was dead**: Turbopack's minifier wrote an octal escape
+// into a template literal, the 4 MB chunk stopped being parseable JavaScript, `next/dynamic` never
+// resolved, and the loading spinner was permanent. Nothing went red. It is invisible in `pnpm dev`,
+// where nothing is minified.
+//
+// So exactly one test asserts it, and it is written to fail for that reason and not for others.
+test("the 3D viewer's chunk loads, and its scene mounts", async ({ page }) => {
+  const { bench } = seed();
+  const submission = bench.submissions.find((entry) => entry.replay) ?? bench.submissions[0]!;
+
+  // **The precise regression guard, and it needs no WebGL at all.** A chunk that fails to parse
+  // reports itself once, as a page error, and then never again — so the assertion is that this
+  // specific error does not happen. It is what distinguishes "the bundler broke the chunk" from
+  // "this machine has no GPU", which are the two ways the assertion below could fail.
+  const pageErrors: string[] = [];
+  page.on("pageerror", (error) => pageErrors.push(error.message));
+
+  await page.goto(`/bench/submission?id=${encodeURIComponent(submission.submission_id)}`);
+  await expect(page.getByRole("heading", { name: /Episode replay/i })).toBeVisible();
+
+  // Behind a control, so opening a leaderboard never costs a globe — `ReplayPane` says so.
+  await page.getByRole("button", { name: /Open the 3D replay/i }).click({ timeout: 60_000 });
+
+  // The scene's own element. Reaching it means the dynamic import resolved, which is precisely what
+  // an unparseable chunk prevents. Not a pixel assertion: what is being proven is that the module
+  // evaluated, not that anything was drawn.
+  await expect(page.getByTestId("globe-scene")).toBeAttached({ timeout: 90_000 });
+
+  expect(pageErrors.filter((message) => /octal escape/i.test(message))).toEqual([]);
+});
+
 test("submits a policy, and the board grows by it", async ({ page }) => {
   const { bench } = seed();
 

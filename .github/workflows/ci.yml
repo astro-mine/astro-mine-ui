@@ -56,7 +56,7 @@ jobs:
 
       # ...and the proof that each gate above can actually fail. A gate nothing has been observed to
       # reject is a gate nobody should trust.
-      - name: Gate self-tests (layering, api-types, vocabularies, drift, bundle)
+      - name: Gate self-tests (every gate's companion)
         run: |
           pnpm check:layering:test
           pnpm check:api-types:test
@@ -64,6 +64,8 @@ jobs:
           pnpm check:api-drift:test
           pnpm check:bundle:test
           pnpm check:local-checkout:test
+          pnpm check:chunks:test
+          pnpm check:repair-escapes:test
 
       - name: Format
         run: pnpm format:check
@@ -160,6 +162,14 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Build (packages, then the static export)
         run: pnpm build
+
+      # **Before anything else looks at the export, does it parse?** This lane asserted a great deal
+      # about the emitted bytes and never that they were valid JavaScript — and for two waves they
+      # were not: the minifier wrote an octal escape into a template literal, the 4 MB Cesium chunk
+      # became a syntax error, and every 3D surface in the shipped bundle was dead with nothing red
+      # to show for it (astro-mine-ui#55). A chunk that does not parse is a feature that never loads.
+      - name: Every emitted chunk is parseable JavaScript
+        run: pnpm check:chunks
 
       # `output: 'export'` is the whole deployment story, so assert the export happened rather than
       # trusting a zero exit code.

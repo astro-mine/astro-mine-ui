@@ -13,7 +13,7 @@
   "scripts": {
     "cesium:assets": "node ../../scripts/copy-cesium-assets.mjs",
     "dev": "pnpm cesium:assets && next dev",
-    "build": "pnpm cesium:assets && next build",
+    "build": "pnpm cesium:assets && next build && node ../../scripts/repair-octal-escapes.mjs out",
     "start": "next start",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.test.json --noEmit"
   },
