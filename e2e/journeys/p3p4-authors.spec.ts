@@ -18,8 +18,9 @@ import { policyName, seed } from "../fixture/seed";
 //   - and the reason the attestations are worth asserting at all: a deployment with no registry
 //     wired reports none, which is indistinguishable from an unsigned artifact (astro-mine-api#16).
 //
-// P3 also gets the one thing the world author can actually *see* here: a published world's terrain,
-// drawn on the artifact's own page (ui#51). That test says why it has to live in this lane.
+// P3 also gets the one thing the world author can actually *see* here: a published world's terrain
+// on the artifact's own page (ui#51). Those two tests say why they have to live in this lane — and
+// the second one is an expected failure that found a defect older than the branch it arrived on.
 
 test("finds an artifact by search and reads its identity", async ({ page }) => {
   const { hub } = seed();
@@ -79,22 +80,34 @@ test("reads what evidence the registry holds, without calling it a verified supp
   await expect(page.getByText(/types this registry holds/i)).toBeVisible();
 });
 
-test("draws a world artifact's terrain from the artifact's own page", async ({ page }) => {
-  // **This test exists because a scaffold used to be the only thing covering it** (ui#51). A globe
-  // reached a panel in exactly one place — `/dev/inspector`, hand-written subjects, deleted at its
-  // stated expiry by `ui#21` — and when it went, `/registry/artifact` had been passing no `globe`
-  // slot the whole time and a `world` artifact rendered "no globe was supplied" where the globe
-  // belongs. Nothing red went red. The component lane runs in jsdom, where Cesium cannot mount and
-  // the empty branch is the *correct* expectation; the `degraded` lane has no backend, so no world
-  // resolves at all. This lane is the only one with both a browser and a world in it.
-  const { hub } = seed();
-  const [name, version] = hub.worlds[0]!.split(":");
+// --- the world author's terrain, in two tests, and the split is the finding ------------------------
+//
+// **These exist because a scaffold used to be the only thing covering this** (ui#51). A globe reached
+// a panel in exactly one place — `/dev/inspector`, hand-written subjects, deleted at its stated
+// expiry by `ui#21` — and when it went, `/registry/artifact` had been passing no `globe` slot the
+// whole time and a `world` artifact rendered "no globe was supplied" where the globe belongs. Nothing
+// red went red. The component lane runs in jsdom, where Cesium cannot mount and the empty branch is
+// the *correct* expectation; the `degraded` lane has no backend, so no world resolves at all. This
+// lane is the only one with both a browser and a world in it.
+//
+// It is two tests because the first run of the second one **found a defect that predates ui#51**:
+// the Cesium chunk in the built export is not parseable JavaScript, so no globe mounts anywhere in
+// the bundle this repository ships (astro-mine-ui#55). Merging them would mean either asserting
+// nothing about the page's own wiring, or carrying a red lane for a defect this branch did not
+// cause. So the page's half is asserted green, and the mount is asserted as the gap it is.
 
-  await page.goto(`/registry/artifact?name=${encodeURIComponent(name!)}&version=${version}`);
+/** Where the seeded world artifact lives, as a URL a reader could send to a colleague. */
+function worldArtifactUrl(): string {
+  const [name, version] = seed().hub.worlds[0]!.split(":");
+  return `/registry/artifact?name=${encodeURIComponent(name!)}&version=${version}`;
+}
+
+test("supplies a world artifact's terrain from the artifact's own page", async ({ page }) => {
+  await page.goto(worldArtifactUrl());
   await expect(page.locator("h1")).toBeVisible();
 
   // The registry resolved a panel for `world_provider`, and the panel is not reporting that the
-  // page handed it nothing. The second assertion is the defect, named.
+  // page handed it nothing. The second assertion is the ui#51 defect, named.
   await expect(page.getByRole("heading", { name: "World", exact: true })).toBeVisible();
   await expect(page.getByText("No terrain rendered")).toHaveCount(0);
 
@@ -103,23 +116,62 @@ test("draws a world artifact's terrain from the artifact's own page", async ({ p
   const draw = page.getByRole("button", { name: "Draw the terrain" });
   await expect(draw).toBeVisible();
 
-  // **The manifest must be fetched from the API, not from the origin serving this page.** The
-  // response carries an API-rooted path and the export is served from its own host — here, `:4174`
-  // against an API on `:8000`. Unjoined it 404s, the scene reports "terrain unavailable", and that
-  // reads as a bad world bundle rather than as a URL built against the wrong host. Waiting for the
-  // response is what distinguishes the two; `data/apiUrl.ts` is the join.
-  const manifest = page.waitForResponse(
-    (response) => response.url().includes("/studio/worlds/files/") && response.ok(),
+  // **What proves the slot is filled and wired to *this* artifact.** The request is the page's own
+  // — `WorldTerrain` is what issues it — and it names the artifact the page is showing. Everything
+  // downstream of it belongs to Cesium, and Cesium is the next test's subject rather than this
+  // one's: a lane that mounts a 3D scene to prove a page passed a prop is a lane that goes red for
+  // reasons that have nothing to do with the page.
+  const resolved = page.waitForResponse(
+    (response) =>
+      response.url().includes("/studio/worlds/") &&
+      !response.url().includes("/studio/worlds/files/") &&
+      response.ok(),
     { timeout: 60_000 },
   );
   await draw.click();
-  await manifest;
+  const world = await resolved;
+  expect(decodeURIComponent(new URL(world.url()).pathname)).toContain(seed().hub.worlds[0]!);
 
-  // The scene is mounted. Asserted on the scene's own element — which `GlobeScene` renders before
-  // and regardless of its `Viewer` — and **not on pixels**: a Cesium canvas in a headless browser
-  // proves WebGL initialised, which is not what this journey is about and is the most reliable way
-  // to buy a flaky test. The same rule p1 and p5 already state.
-  await expect(page.getByTestId("globe-scene")).toBeVisible({ timeout: 60_000 });
+  // Still not the empty state after the round trip — the panel is drawing, or saying why it cannot.
+  await expect(page.getByText("No terrain rendered")).toHaveCount(0);
+});
+
+// **EXPECTED TO FAIL — astro-mine-ui#55, and it is not this branch's defect.**
+//
+// `next build` emits Cesium into a 4 MB chunk that **is not parseable JavaScript**: it carries an
+// embedded binary inside a template literal with octal escapes, so evaluating it throws
+// `SyntaxError: Octal escape sequences are not allowed in template strings`. `next/dynamic` never
+// resolves, and the loading fallback is permanent. Reproduced on `main` at 00b7b51 with this branch
+// nowhere near it — `node --check` fails on the same two chunks — so **every 3D surface in the
+// shipped bundle is dead**: this globe, `/design/study`'s inspection pane and `/bench/submission`'s
+// replay all load it.
+//
+// It went unnoticed because minification only happens in a production build, and the globes were
+// only ever read on `pnpm dev`, on two scaffold routes that were then deleted.
+//
+// `test.fail` rather than `test.skip`, which is the house pattern (p5 carries two of them): a
+// skipped test asserts nothing and is deleted by the next person who reads it, while this one
+// **turns the lane red the day #55 is fixed** and has to be revisited. When that happens, drop
+// `.fail` — and this then also covers the API-base join in `data/apiUrl.ts` end to end, which is
+// the one thing about the terrain path no green test can reach today.
+test.fail("mounts the globe once the world resolves", async ({ page }) => {
+  await page.goto(worldArtifactUrl());
+  await page.getByRole("button", { name: "Draw the terrain" }).click();
+
+  // The manifest is fetched from the API rather than from the origin serving this page: the response
+  // carries an API-rooted path and the export is served from its own host — `:4174` against an API
+  // on `:8000`. Unjoined it 404s and the scene reports "terrain unavailable", which reads as a bad
+  // world bundle rather than as a URL built against the wrong host.
+  await page.waitForResponse(
+    (response) => response.url().includes("/studio/worlds/files/") && response.ok(),
+    { timeout: 30_000 },
+  );
+
+  // The scene's own element, which `GlobeScene` renders before and regardless of its `Viewer` — and
+  // **not pixels**: a Cesium canvas in a headless browser proves WebGL initialised, which is not
+  // what this journey is about and is the most reliable way to buy a flaky test. The rule p1 and p5
+  // already state.
+  await expect(page.getByTestId("globe-scene")).toBeVisible({ timeout: 30_000 });
 });
 
 test("resolves a version specifier to a pinned digest", async ({ page }) => {
