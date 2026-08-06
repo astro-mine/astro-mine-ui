@@ -13,7 +13,7 @@
 
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
-import { GlobeScene, SwarmLayer } from "@astro-mine/view";
+import { EntityLayer, GlobeScene, SwarmLayer } from "@astro-mine/view";
 
 import type { UnitPlacement } from "./layout";
 import type { WorldResponse } from "./types";
@@ -65,22 +65,34 @@ export function InspectionScene({
           showCoordinates
           style={{ width: "100%", height: "100%" }}
         >
-          <SwarmLayer
-            placements={placements.map((placement) => {
-              const documentUrl = geometry[placement.assetRef];
-              return {
-                id: placement.id,
-                // A SADF document when the preview resolved; otherwise a source that cannot, which
-                // `SwarmLayer` draws as a distinctly-coloured glyph and counts as unrenderable. The
-                // pane says which below rather than leaving the colour to carry it.
-                source:
-                  documentUrl === undefined
-                    ? { gltfUrl: "", assetId: placement.assetRef }
-                    : { documentUrl },
-                pose: placement.pose,
-              };
-            })}
-          />
+          {/* **`SwarmLayer` needs a layer, and this is where one comes from** (ui#57). It calls
+              `useEntityLayer()`, which throws unless an `<EntityLayer>` is above it — `GlobeScene`
+              supplies the globe context and deliberately not this one, because a layer is the
+              scoped, self-cleaning collection a host mounts and discards per swarm.
+
+              It was missing from `ui#17` and could not fire: jsdom cannot mount Cesium, and the
+              built export's Cesium chunk was not parseable JavaScript (ui#55), so this scene never
+              rendered in a browser either. The moment ui#56 repaired the chunk it threw during
+              render and the error boundary took the whole study page — worse than the spinner it
+              replaced. The journeys lane is the only thing that can see this. */}
+          <EntityLayer name="design-inspection">
+            <SwarmLayer
+              placements={placements.map((placement) => {
+                const documentUrl = geometry[placement.assetRef];
+                return {
+                  id: placement.id,
+                  // A SADF document when the preview resolved; otherwise a source that cannot, which
+                  // `SwarmLayer` draws as a distinctly-coloured glyph and counts as unrenderable. The
+                  // pane says which below rather than leaving the colour to carry it.
+                  source:
+                    documentUrl === undefined
+                      ? { gltfUrl: "", assetId: placement.assetRef }
+                      : { documentUrl },
+                  pose: placement.pose,
+                };
+              })}
+            />
+          </EntityLayer>
         </GlobeScene>
       </Box>
 

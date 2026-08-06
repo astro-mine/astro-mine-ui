@@ -33,4 +33,5 @@ export type WorldEntry = components["schemas"]["WorldEntry"];
 export type WorldResponse = components["schemas"]["WorldResponse"];
 export type AssetPreviewResponse = components["schemas"]["AssetPreviewResponse"];
 export type Campaign = components["schemas"]["Campaign"];
+export type CampaignPhase = components["schemas"]["CampaignPhase"];
 export type PublishedArtifactRef = components["schemas"]["PublishedArtifactRef"];
