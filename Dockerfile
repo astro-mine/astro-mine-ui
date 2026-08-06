@@ -58,7 +58,7 @@ RUN test -f apps/console/out/index.html \
 # listens on 8080, so the image needs no root at runtime and no `--user` flag to be safe by
 # default. The official image runs every executable `/docker-entrypoint.d/*.sh` before starting
 # nginx, which is the hook the runtime configuration uses.
-FROM nginxinc/nginx-unprivileged:1.29-alpine@sha256:0c79d56aee561a1d81c63f00eee5fb5fe29279560cdc55e91425133104c7fbe6
+FROM nginxinc/nginx-unprivileged:1.31-alpine@sha256:a6c3ec0c0d249d68b0682df854d4a9e222b90fb607dc3fcf2f1d2fcbc85d347e
 
 # The base image ends with `USER 101`, and both the entrypoint hook and the document root have to
 # be installed as root. Dropped again below — nothing here runs privileged.
