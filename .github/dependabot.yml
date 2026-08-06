@@ -115,3 +115,19 @@ updates:
       interval: weekly
       day: monday
     open-pull-requests-limit: 2
+    # Patch and minor freely — that is the whole point of this block, and the `image` lane proves
+    # each one. The Node **major** is the exception, and it is not a preference:
+    #
+    # `.nvmrc` is the single source of the Node version, and all nine CI jobs resolve through it
+    # (`node-version-file`). A Dockerfile `FROM` cannot read it, so a Dependabot major bump here
+    # moves the image alone and builds the deployable on a Node nothing else is tested on — the
+    # drift the digest pins exist to prevent. The major must move as one edit to `.nvmrc`,
+    # `engines.node` and this image, onto an LTS line.
+    #
+    # #52 is the concrete case: node 25 dropped Corepack, so `corepack enable pnpm` died with
+    # `not found` and the image could not build at all — and 25 is an odd major, which never
+    # becomes LTS. A weekly PR that can only ever be closed trains a reviewer to close them
+    # unread, which is how the one that matters gets closed too.
+    ignore:
+      - dependency-name: "node"
+        update-types: ["version-update:semver-major"]
