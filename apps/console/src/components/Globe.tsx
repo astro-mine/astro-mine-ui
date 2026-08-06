@@ -21,15 +21,14 @@
 // the build runs before `next build`. Nothing is fetched from a CDN in either mode — that is CX-LOCAL,
 // and it is why the copy exists rather than a script tag.
 //
-// **`CESIUM_BASE_URL` has two consumers; the `Globe` component currently has none, and that is
-// recorded rather than resolved.** `ui#21` deleted `/dev/inspector`, which was the only thing
-// mounting it — `ReplayPane` and `InspectionPane` each do their own `next/dynamic` and take only the
-// constant. The export is kept because it is the mechanism for a gap, not a leftover: `ui.md` §6
-// says a `world` artifact renders a globe, `packages/inspectors/src/model.ts` says the panel is
-// *handed* one rather than summoning it, and `/registry/artifact` passes no `globe` slot — so a
-// world artifact there renders `WorldInspector`'s "no globe was supplied" state instead of a globe.
-// Deleting this would mean re-deriving the mount on the day that is closed. **If that gap is closed
-// elsewhere, or declared deliberate, delete this export.**
+// **`CESIUM_BASE_URL` has three consumers and `Globe` has one.** `components/registry/WorldTerrain`
+// mounts this to fill `WorldInspector`'s `globe` slot, which is what makes `ui.md` §6's opening
+// sentence — a `world` artifact renders a globe — true of `/registry/artifact` (ui#51). `ReplayPane`
+// and `InspectionPane` take only the constant, because each loads a scene module of its own rather
+// than this component; the constant is what has to be set before *any* of those imports resolve.
+//
+// This export spent one wave with no consumer at all: `ui#21` deleted `/dev/inspector`, which had
+// been the only thing mounting it, and the gap it was kept for is the one `ui#51` closed.
 
 import Box from "@mui/material/Box";
 import CircularProgress from "@mui/material/CircularProgress";
