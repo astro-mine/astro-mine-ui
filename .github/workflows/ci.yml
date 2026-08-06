@@ -442,18 +442,35 @@ jobs:
       # Cesium is served by the deployment or the globe does not load. The build lane asserts the
       # files were staged; this asserts nginx hands them over, with the content type a browser will
       # instantiate WebAssembly from.
+      #
+      # **The filenames are read out of the image, not written down here.** Cesium's workers are
+      # emitted as content-hashed chunks — `chunk-2AIOP76V.js` — so a name written into this file is
+      # a name that stops existing at the next bump. Written down, it failed on this step's very
+      # first run against a name from an older layout; the assertion would then have been "fixed" by
+      # pasting in today's hash, which is the same bug with a longer fuse.
       - name: Cesium is served by the deployment, correctly typed and cached
         run: |
+          probe() {
+            docker run --rm --entrypoint sh astro-mine-ui:ci -c \
+              "ls /usr/share/nginx/html/cesium/$1 | head -1"
+          }
+          worker=$(probe 'Workers/*.js')
+          wasm=$(probe 'ThirdParty/*.wasm')
+          test -n "$worker" && test -n "$wasm" \
+            || { echo "::error::the image stages no Cesium workers or WebAssembly at all"; exit 1; }
+          worker=$(basename "$worker"); wasm=$(basename "$wasm")
+          echo "Probing Workers/$worker and ThirdParty/$wasm."
+
           ct=$(curl -fsS -o /dev/null -w '%{content_type}' \
-            http://127.0.0.1:8080/cesium/ThirdParty/draco_decoder.wasm)
+            "http://127.0.0.1:8080/cesium/ThirdParty/$wasm")
           case "$ct" in
             application/wasm*) ;;
-            *) echo "::error::draco_decoder.wasm was served as '$ct'; a browser refuses to stream-compile anything but application/wasm"; exit 1 ;;
+            *) echo "::error::$wasm was served as '$ct'; a browser refuses to stream-compile anything but application/wasm"; exit 1 ;;
           esac
-          curl -fsS -o /dev/null http://127.0.0.1:8080/cesium/Workers/cesiumWorkerBootstrapper.js \
+          curl -fsS -o /dev/null "http://127.0.0.1:8080/cesium/Workers/$worker" \
             || { echo "::error::Cesium's workers are not served"; exit 1; }
 
-          curl -fsS -D- -o /dev/null http://127.0.0.1:8080/cesium/ThirdParty/draco_decoder.wasm \
+          curl -fsS -D- -o /dev/null "http://127.0.0.1:8080/cesium/ThirdParty/$wasm" \
             | grep -qi 'cache-control:.*immutable' \
             || { echo "::error::content-addressed assets are not served immutable"; exit 1; }
 
