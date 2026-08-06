@@ -320,7 +320,12 @@ jobs:
         # passing files here work at all: `--project` takes a *list*, so with a space the paths
         # append to it and Playwright reports `Project(s) "e2e/smoke.spec.ts" not found`. Caught by
         # this lane on its first run, which is the argument for the lane.
-        run: pnpm e2e e2e/smoke.spec.ts e2e/degraded.spec.ts
+        #
+        # `deployment.spec.ts` joins them because it needs the same thing and nothing more: one
+        # served export, no API. It fulfils `config.json` at the network layer, which is what lets
+        # the *same build* be driven at two different endpoints in one run — the proof that changing
+        # the API URL is a file edit rather than a rebuild (ui#21).
+        run: pnpm e2e e2e/smoke.spec.ts e2e/degraded.spec.ts e2e/deployment.spec.ts
 
       - name: Upload the report on failure
         if: failure()
