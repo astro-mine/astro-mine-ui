@@ -7,7 +7,7 @@
  * Fleet used to serialize body-frame vertices straight into the `.glb`, producing a file that claimed
  * to be Y-up and was not; View compensated with `upAxis: Axis.Z, forwardAxis: Axis.X`, while every
  * other glTF consumer rendered the asset on its side. Since
- * [astro-mine-fleet#28](https://github.com/astro-mine/astro-mine-fleet/issues/28) the exporter
+ * astro-mine-fleet#28 the exporter
  * carries the body→glTF rotation on the mesh node — leaving vertex data identical to the sibling
  * `.usda` — so the file orients itself and View overrides nothing.
  *
