@@ -52,6 +52,15 @@ RUN test -f apps/console/out/index.html \
   && test -d apps/console/out/cesium/Workers \
   || (echo "no static export at apps/console/out" >&2; exit 1)
 
+# The image redistributes CesiumJS and the 23 components its ThirdParty.json lists — MIT and
+# BSD-3-Clause among them, both of which *require* the notice to travel with the bytes (ui#66).
+# Asserted rather than assumed, beside the assets themselves: a licence obligation nobody checks is
+# one that silently stops being met on the next dependency bump.
+RUN for f in LICENSE.md ThirdParty.json THIRD-PARTY-NOTICES.md; do \
+      test -s "apps/console/out/cesium/$f" \
+        || (echo "apps/console/out/cesium/$f is missing — the image would redistribute Cesium and its 23 bundled components with no notice, which MIT and BSD-3-Clause do not permit" >&2; exit 1); \
+    done
+
 # ── serve ─────────────────────────────────────────────────────────────────────────────────────
 #
 # `nginx-unprivileged` rather than `nginx`: it runs as uid 101 with no capability to drop and
