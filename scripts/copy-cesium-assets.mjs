@@ -27,6 +27,30 @@ import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 /** The four directories Cesium fetches at runtime. Everything else in `Build/` is bundler input. */
 const RUNTIME_DIRS = ["Assets", "ThirdParty", "Widgets", "Workers"];
 
+/**
+ * Cesium's own notices, copied from the package root beside the runtime assets (ui#66).
+ *
+ * **This is a licence term, not a courtesy.** The staged bundle redistributes CesiumJS and the 23
+ * components its `ThirdParty.json` lists — 14 MIT, 4 Apache-2.0, 3 ISC, 2 BSD-3-Clause. MIT and
+ * BSD-3-Clause both *require* the copyright notice and permission text to travel with a
+ * redistribution, and Apache-2.0 §4 requires giving recipients the licence and retaining
+ * attribution. Until this, the export carried none of the three.
+ *
+ * `LICENSE.md` is the one that discharges it: Cesium aggregates every bundled component's text
+ * there (55 KB of it), and all 23 are covered — several under their author's name rather than the
+ * package's, which is why a package-name search of it under-reports. `ThirdParty.json` is the
+ * machine-readable manifest of what those 23 are.
+ *
+ * Copied *here*, in the script that stages the bytes, because this is the only place that knows
+ * which version's notices belong with which assets. The version stamp then does the rest: a Cesium
+ * bump misses the short-circuit and re-copies the new version's notices along with everything else,
+ * so the notices cannot go stale while the assets move.
+ */
+const NOTICE_FILES = ["LICENSE.md", "ThirdParty.json"];
+
+/** Where the aggregated notice lands. A predictable path a deployment can serve or point at. */
+const NOTICE_NAME = "THIRD-PARTY-NOTICES.md";
+
 const DEFAULT_DESTINATION = join("public", "cesium");
 const STAMP_NAME = ".cesium-version";
 
@@ -41,6 +65,51 @@ function resolveCesiumRoot(cwd) {
         "install it (`pnpm add cesium`) and re-run.",
     );
   }
+}
+
+/**
+ * A single aggregated notice: what is redistributed here, under what licence, and where the text is.
+ *
+ * Deliberately an index rather than a second copy of the texts — `LICENSE.md` beside it already
+ * carries those, and two copies of a licence text is one of them going stale. What this adds is the
+ * thing neither upstream file states plainly: that these components are *in this deployable*.
+ */
+async function buildNotice(cesiumRoot, version) {
+  const manifest = JSON.parse(await readFile(join(cesiumRoot, "ThirdParty.json"), "utf8"));
+  const rows = manifest
+    .slice()
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((entry) => {
+      const licence = Array.isArray(entry.license) ? entry.license.join(", ") : entry.license;
+      return `| ${entry.name} | ${entry.version ?? "—"} | ${licence} | ${entry.url ?? "—"} |`;
+    });
+  const counts = {};
+  for (const entry of manifest) {
+    for (const licence of Array.isArray(entry.license) ? entry.license : [entry.license]) {
+      counts[licence] = (counts[licence] ?? 0) + 1;
+    }
+  }
+  const summary = Object.entries(counts)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([licence, n]) => `${licence} ×${n}`)
+    .join(", ");
+
+  return [
+    "# Third-party notices",
+    "",
+    `This deployment bundles **CesiumJS ${version}** (Apache-2.0) and the ${manifest.length} ` +
+      `components below that Cesium redistributes: ${summary}.`,
+    "",
+    "Full licence texts for CesiumJS **and every component listed here** are in `LICENSE.md`",
+    "beside this file; the machine-readable manifest is `ThirdParty.json`. Both are copied verbatim",
+    "from the Cesium package at the version above, by `scripts/copy-cesium-assets.mjs`, so they",
+    "cannot describe a different version than the assets they ship with.",
+    "",
+    "| Component | Version | Licence | Source |",
+    "| --- | --- | --- | --- |",
+    ...rows,
+    "",
+  ].join("\n");
 }
 
 async function stageCesiumAssets(destination, cwd) {
@@ -78,8 +147,24 @@ async function stageCesiumAssets(destination, cwd) {
     await cp(from, join(outDir, name), { recursive: true });
   }
 
+  for (const name of NOTICE_FILES) {
+    const from = join(cesiumRoot, name);
+    if (!existsSync(from)) {
+      throw new Error(
+        `cesium ${version} ships no ${name}. The bundle redistributes 23 third-party components ` +
+          "and MIT and BSD-3-Clause require their notices to travel with it, so staging the assets " +
+          "without it would put an unnotified redistribution into the deployable (ui#66).",
+      );
+    }
+    await cp(from, join(outDir, name));
+  }
+  await writeFile(join(outDir, NOTICE_NAME), await buildNotice(cesiumRoot, version), "utf8");
+
   await writeFile(stamp, `${version}\n`, "utf8");
-  console.log(`staged cesium ${version} runtime assets → ${shown}`);
+  console.log(
+    `staged cesium ${version} runtime assets + notices (${NOTICE_FILES.join(", ")}, ` +
+      `${NOTICE_NAME}) → ${shown}`,
+  );
 }
 
 try {

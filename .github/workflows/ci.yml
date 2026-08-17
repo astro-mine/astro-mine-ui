@@ -223,6 +223,13 @@ jobs:
             test -d "apps/console/out/cesium/$dir" \
               || { echo "::error::apps/console/out/cesium/$dir is missing — Cesium's runtime assets were not staged into the export, and the globe will fail to load with no build error to show for it"; exit 1; }
           done
+          # The export redistributes CesiumJS and the 23 components its ThirdParty.json lists (14
+          # MIT, 4 Apache-2.0, 3 ISC, 2 BSD-3-Clause). MIT and BSD-3-Clause require the notice to
+          # ship with the bytes, so its absence is a licence failure, not a cosmetic one (ui#66).
+          for f in LICENSE.md ThirdParty.json THIRD-PARTY-NOTICES.md; do
+            test -s "apps/console/out/cesium/$f" \
+              || { echo "::error::apps/console/out/cesium/$f is missing — the export would redistribute Cesium and its 23 bundled components with no notice of any kind, which MIT and BSD-3-Clause do not permit"; exit 1; }
+          done
           chunks=apps/console/out/_next/static/chunks
           biggest=$(ls -S "$chunks" | head -1)
           grep -q 'CESIUM_BASE_URL' "$chunks/$biggest" \
