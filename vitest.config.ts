@@ -186,19 +186,58 @@ export default defineConfig({
         // The testing harness itself. It is exercised by every test that imports it, and measuring
         // a test helper's coverage is measuring the tests.
         "packages/ui/src/testing.ts",
+        // THE 3D PANE, WHICH THIS LANE IS FORBIDDEN TO EXECUTE.
+        //
+        // `conventions.md` §11: "WebGL has no `jsdom` context, so anything touching a canvas belongs
+        // in Playwright, not Vitest." `ui#68` enforced that — `apps/console/tests/setup.tsx` stubs
+        // `GlobeScene`, `EntityLayer` and `SwarmLayer`, and turns Cesium's `Viewer` into a
+        // constructor that throws naming the rule — but left these modules inside the measurement.
+        //
+        // So the floor was being computed over 89 functions that the lane is *required* not to run.
+        // They sat at 0%, dragged every metric down by six to eight points, and functions landed at
+        // 74.53 against a floor of 75 the first time CI was able to execute the lane at all. That is
+        // the same objection this list already makes about generated trees: their coverage is a
+        // statement about something other than the code under test, and no reviewer can act on it.
+        //
+        // Excluded by the property that puts them in the other lane — each one mounts into, reads
+        // from, or renders a component that needs a live Cesium `Viewer`. Not "imports cesium":
+        // `appearance.ts`, `ellipsoid.ts` and `assetGeometry.ts` import it for arithmetic, run fine
+        // under jsdom, and are tested here at 100/88/25%. And not `InspectionScene.tsx`, which
+        // renders `GlobeScene` but is itself exercised through the stub.
+        //
+        // **These are covered, in the Playwright lane, against the built export.** Excluding them
+        // here narrows what this floor claims to what this lane can actually check; it does not
+        // narrow what is tested. If one of them ever becomes reachable under jsdom, take it off this
+        // list and let the floor rise.
+        "packages/view/src/globe/GlobeScene.tsx",
+        "packages/view/src/globe/EntityLayer.tsx",
+        "packages/view/src/globe/SwarmLayer.tsx",
+        "packages/view/src/globe/AssetModel.tsx",
+        "packages/view/src/globe/AssetPreview.tsx",
+        "packages/view/src/globe/CoordinateReadout.tsx",
+        "packages/view/src/globe/ReplayLayer.tsx",
+        "packages/view/src/globe/useWorldTerrain.ts",
+        "packages/view/src/globe/context.ts",
+        "apps/console/src/components/Globe.tsx",
+        "apps/console/src/components/bench/ReplayScene.tsx",
       ],
       // MEASURED, NOT ASPIRED TO.
       //
-      // What the suite achieved on CI when Wave 29 landed — 862 tests over 65 files, measured on a
-      // clean runner because this is the only place it can be measured reliably:
+      // What the suite achieves — 875 tests over 66 files, over the exclusions above:
       //
-      //     statements 78.38 · branches 78.41 · functions 76.08 · lines 79.96
+      //     statements 85.71 · branches 84.35 · functions 80.56 · lines 87.01
       //
-      // Up from 70.63 / 74.42 / 69.52 / 72.11 when `ui#8` set the first floors. Wave 28's note
-      // predicted the jump and said why the old numbers were so low: "the application's route files
-      // are inside this measurement and are all at 0%, because they are ui#5's placeholders that no
-      // test mounts... Expect these to jump through Wave 29 — raise them as they do." Twelve issues
-      // later they are pages with tests, and this is the raise.
+      // Up from 77.35 / 77.10 / 74.53 / 79.02 measured over the *old* set, and that difference is
+      // not a single new test: it is the eleven 3D-pane modules leaving a measurement they could
+      // never have contributed to. See the exclusion note above.
+      //
+      // **The previous numbers here were never measured on CI, though this comment said they were.**
+      // The org was out of Actions minutes for the whole of Waves 28–32, so every run was refused in
+      // three seconds without executing a step; `78.38 / 78.41 / 76.08 / 79.96` was a workstation
+      // figure, taken before `ui#68` moved the 3D pane to Playwright and never retaken. The first
+      // run that actually executed this lane came in under the functions floor. The numbers above
+      // are reproduced identically on a runner and on the authoring machine, which is what makes
+      // them safe to sit a point under.
       //
       // The floors sit about a point under each measurement, which is deliberate on both sides. A
       // floor set at the measured value flaps — one refactor that moves a branch turns the lane red
@@ -207,10 +246,10 @@ export default defineConfig({
       //
       // **Never lower one without saying why in the commit that does it.**
       thresholds: {
-        statements: 77,
-        branches: 77,
-        functions: 75,
-        lines: 79,
+        statements: 84,
+        branches: 83,
+        functions: 79,
+        lines: 86,
       },
     },
   },
