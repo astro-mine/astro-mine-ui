@@ -35,7 +35,7 @@
     "test:palette": "vitest run tests/palette.test.ts tests/palette-gate.test.ts"
   },
   "dependencies": {
-    "@mui/x-charts": "^9.10.1"
+    "@mui/x-charts": "^9.11.1"
   },
   "peerDependencies": {
     "@emotion/react": "^11.14.0",
@@ -50,11 +50,11 @@
   "devDependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
-    "@mui/material": "^9.2.0",
-    "@testing-library/jest-dom": "^7.0.0",
+    "@mui/material": "^9.3.1",
+    "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.2",
-    "@testing-library/user-event": "^14.6.3",
-    "axe-core": "^4.12.1",
+    "@testing-library/user-event": "^14.6.4",
+    "axe-core": "^4.13.0",
     "jsdom": "^30.0.1",
     "vitest": "^4.1.10"
   },

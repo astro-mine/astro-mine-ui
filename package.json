@@ -54,7 +54,7 @@
     "e2e:journeys": "ASTRO_MINE_JOURNEYS=1 playwright test --project=journeys"
   },
   "devDependencies": {
-    "@axe-core/playwright": "^4.12.1",
+    "@axe-core/playwright": "^4.13.0",
     "@eslint/js": "^9.39.0",
     "@playwright/test": "^1.62.1",
     "@types/node": "^24.13.3",
@@ -70,7 +70,7 @@
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.66.0",
+    "typescript-eslint": "^8.67.0",
     "vitest": "^4.1.10"
   }
 }
