@@ -11,6 +11,12 @@ on:
     # opened/synchronize/reopened — without this, labelling a pull request schedules nothing and the
     # lane silently waits for the next push, which reads as the label being ignored.
     types: [opened, synchronize, reopened, labeled]
+  # Re-run `main` on demand. Every lane here failed for the first eight months of this repository's
+  # life without executing a step -- the org was over its Actions minutes, so each job was refused
+  # in three seconds with no log to read. `gh run rerun` will not restart a run that never started,
+  # so once Actions came back there was no way to ask "is main actually green?" short of pushing a
+  # commit to find out. This is that way.
+  workflow_dispatch:
 
 # Read-only by default (org security baseline).
 permissions:
